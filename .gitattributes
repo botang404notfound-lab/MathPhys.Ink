@@ -1,0 +1,36 @@
+# 行尾归一：仓库内一律以 LF 存储，检出到 Windows 工作区时自动转 CRLF。
+# 这样 Linux/macOS 上克隆也能得到一致结果，而本机仍是熟悉的 CRLF。
+* text=auto eol=crlf
+
+# 明确按文本处理（避免被误判为二进制）
+*.cs        text diff=csharp
+*.xaml      text
+*.csproj    text
+*.sln       text eol=crlf
+*.manifest  text
+*.config    text
+*.props     text
+*.targets   text
+*.md        text
+*.py        text
+*.mjs       text
+*.json      text
+*.txt       text
+
+# 明确按二进制处理（不做行尾转换、不参与文本 diff）
+*.dll       binary
+*.exe       binary
+*.pdb       binary
+*.png       binary
+*.jpg       binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.twb       binary
+*.tbink     binary
+*.cache.js  binary
+*.ggb       binary
+
+# 第三方原样包：整体标记，避免 Git 对它们做任何加工或统计
+src/MathPhys.Ink/Assets/geogebra/**  linguist-vendored
+src/MathPhys.Ink/Assets/websim/**    linguist-vendored
