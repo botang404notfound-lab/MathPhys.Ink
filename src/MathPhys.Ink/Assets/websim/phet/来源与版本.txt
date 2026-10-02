@@ -1,0 +1,63 @@
+PhET 物理板块离线资源（全量，45 个仿真）
+==========================================
+
+来源与语言：每个仿真按 zh_CN → zh_TW → en 依次取官方 self-contained 单文件，
+只落第一个存在的语言（避免重复）。逐文件明细见下。
+
+PhET Interactive Simulations, University of Colorado Boulder。
+仿真本体许可：PhET 仿真按 CC-BY-4.0 / GPL-3.0 双许可分发 —— 本目录按官方
+self-contained 文件**原样保留**（未改动任何字节；文件内的统计脚本与版权链接
+在离线时会静默失败，不影响仿真）。
+
+项目主页：https://phet.colorado.edu/
+重新取回：python tools/fetch_phet.py
+
+清单（slug | 语言 | 大小 MB | 中文标签 | 板块）
+----------------------------------------------------------------
+  forces-and-motion-basics | zh_CN | 4.6 | 力与运动：基础 | 力学
+  friction | zh_CN | 2.0 | 摩擦力 | 力学
+  hookes-law | zh_CN | 2.3 | 胡克定律 | 力学
+  balancing-act | zh_CN | 3.0 | 杠杆平衡 | 力学
+  projectile-motion | zh_CN | 4.2 | 抛体运动 | 力学
+  collision-lab | zh_CN | 1.5 | 碰撞实验室 | 力学
+  energy-skate-park | zh_CN | 4.6 | 能量滑板公园 | 力学
+  energy-skate-park-basics | zh_CN | 4.7 | 能量滑板公园：入门 | 力学
+  energy-forms-and-changes | zh_CN | 3.4 | 能量的形式与转化 | 力学
+  gravity-force-lab | zh_CN | 3.0 | 重力实验室 | 力学
+  gravity-force-lab-basics | zh_CN | 2.8 | 重力实验室：基础 | 力学
+  gravity-and-orbits | zh_CN | 3.3 | 重力与轨道 | 力学
+  masses-and-springs | zh_CN | 1.5 | 质量与弹簧 | 力学
+  masses-and-springs-basics | zh_CN | 1.7 | 质量与弹簧：基础 | 力学
+  density | zh_CN | 4.6 | 密度 | 力学
+  vector-addition | zh_CN | 2.4 | 矢量合成 | 力学
+  pendulum-lab | zh_CN | 3.6 | 单摆实验 | 振动与波·声与光
+  waves-intro | zh_CN | 3.2 | 波入门 | 振动与波·声与光
+  wave-on-a-string | zh_CN | 2.4 | 弦上的波 | 振动与波·声与光
+  wave-interference | zh_CN | 3.3 | 波的干涉 | 振动与波·声与光
+  fourier-making-waves | zh_TW | 2.5 | 傅里叶：造波 | 振动与波·声与光
+  bending-light | zh_CN | 3.2 | 光的折射 | 振动与波·声与光
+  geometric-optics | zh_CN | 2.2 | 几何光学 | 振动与波·声与光
+  color-vision | zh_CN | 5.5 | 颜色视觉 | 振动与波·声与光
+  balloons-and-static-electricity | zh_CN | 3.4 | 气球与静电 | 电磁学
+  john-travoltage | zh_CN | 1.8 | 约翰的静电 | 电磁学
+  charges-and-fields | zh_CN | 1.2 | 电荷与电场 | 电磁学
+  ohms-law | zh_CN | 1.5 | 欧姆定律 | 电磁学
+  resistance-in-a-wire | zh_CN | 2.4 | 导线的电阻 | 电磁学
+  capacitor-lab-basics | zh_CN | 1.5 | 电容器实验室：基础 | 电磁学
+  circuit-construction-kit-dc | zh_CN | 3.3 | 电路组装套件：直流 | 电磁学
+  circuit-construction-kit-dc-virtual-lab | zh_CN | 3.3 | 电路组装套件：直流·虚拟实验室 | 电磁学
+  circuit-construction-kit-ac | zh_CN | 2.3 | 电路组装套件：交流 | 电磁学
+  circuit-construction-kit-ac-virtual-lab | zh_CN | 2.2 | 电路组装套件：交流·虚拟实验室 | 电磁学
+  magnet-and-compass | zh_CN | 2.5 | 磁铁与指南针 | 电磁学
+  magnets-and-electromagnets | zh_CN | 2.6 | 磁铁与电磁铁 | 电磁学
+  faradays-law | zh_CN | 2.1 | 法拉第电磁感应定律 | 电磁学
+  molecule-polarity | zh_CN | 3.9 | 分子极性 | 电磁学
+  gases-intro | zh_CN | 2.4 | 气体入门 | 热学与流体
+  gas-properties | zh_CN | 2.5 | 气体性质 | 热学与流体
+  under-pressure | zh_CN | 1.2 | 液体压强 | 热学与流体
+  my-solar-system | zh_CN | 4.0 | 我的太阳系 | 天体与近代
+  isotopes-and-atomic-mass | zh_CN | 2.7 | 同位素与原子质量 | 天体与近代
+  rutherford-scattering | zh_CN | 3.2 | 卢瑟福散射 | 天体与近代
+  models-of-the-hydrogen-atom | zh_CN | 3.2 | 氢原子模型 | 天体与近代
+
+取回日期：2026-09-27

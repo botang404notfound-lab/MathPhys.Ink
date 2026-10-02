@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MathPhys.Ink.Plugin.Formula</RootNamespace>
+    <!-- dll 名与目录名一致：加载器的约定是 plugins\formula\formula.dll -->
+    <AssemblyName>formula</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- 插件是"被宿主 ALC 动态加载"的：必须把 NuGet 包 dll（WpfMath / XamlMath.Shared）
+         复制到 bin，stage 脚本才能把它们铺进 plugins\formula\。
+         M14 真机教训：纯类库默认不复制包 dll ⇒ 包里只有 formula.dll，一输公式就炸。 -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 与其它学科工具同款：只引用契约；渲染器由宿主扫同名 dll 自动登记 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WPF-Math 2.1.0（MIT）：LaTeX 解析 + 矢量渲染（GeometryGroup），
+         纯托管、内嵌数学字体、零浏览器依赖 —— 轻量版也带得动。
+         S0 勘验结论（2026-09-23）：物理常用符号全覆盖；不支持 \mathbb 与中文（CJK 无字形与度量）。 -->
+    <PackageReference Include="WpfMath" Version="2.1.0" />
+  </ItemGroup>
+
+</Project>

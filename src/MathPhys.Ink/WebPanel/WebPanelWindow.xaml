@@ -1,0 +1,75 @@
+<Window x:Class="MathPhys.Ink.WebPanel.WebPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="演示面板" Height="800" Width="1400"
+        WindowStyle="None" ResizeMode="NoResize"
+        WindowState="Maximized" ShowInTaskbar="False"
+        FontFamily="{StaticResource Font.Family}"
+        FontSize="{StaticResource Text.Body}"
+        Background="{DynamicResource Ui.WindowBackground}">
+
+    <!-- 全屏演示形态（docs/12 §3.2 的 A3）：一体机上屏幕只有一块，
+         "满屏看清楚"是讲台刚需。
+         M22 起这是**通用**的 Web 面板窗：标题与文案由 profile 在构造时传进来，
+         GeoGebra 与物理仿真共用它。 -->
+
+    <DockPanel>
+
+        <!-- ★ 顶部工具栏必须落在 WebView2 **之外**。
+             WebView2 是基于 HWND 的控件，Windows 的窗口合成规则决定它永远渲染在
+             所有 WPF 视觉元素之上（经典的 airspace / 空气空间问题）——
+             任何与它矩形重叠的 WPF 按钮都既看不见也点不着。
+             所以"返回白板"这条退路只能靠"不重叠"来保证：
+             工具栏占顶部一条，WebView2 占剩下的全部。
+
+             按钮走 Style.DockButton（高 44、字号 17）：一体机是手指在点，不是鼠标。 -->
+        <Border DockPanel.Dock="Top" Style="{StaticResource Style.ChromeBar}">
+            <DockPanel>
+
+                <Button x:Name="BackButton" DockPanel.Dock="Right"
+                        Content="返回白板（Esc）" Click="OnBackClick"
+                        Style="{StaticResource Style.DockButton}"
+                        MinWidth="200"
+                        ToolTip="退出演示面板，回到白板（按 Esc 也一样）" />
+
+                <!-- 切换到停靠形态（A1）：画布缩小让出右侧一块，白板与演示并排。
+                     与返回按钮一样必须在 WebView2 矩形之外（见上方 airspace 说明）。 -->
+                <Button x:Name="ToggleFormButton" DockPanel.Dock="Right"
+                        Content="停靠面板（D）" Click="OnToggleFormClick"
+                        Style="{StaticResource Style.DockButton}"
+                        Margin="0,0,10,0"
+                        ToolTip="改成停靠形态：画布缩小让出右侧一块，白板与演示并排（快捷键 D）" />
+
+                <!-- ★ 「导出到白板」放在**窗自己的顶栏**，而不是网页里。
+                     三个理由：
+                     1) 网页全是第三方官方包（GeoGebra 官方 bundle、CircuitJS、PhET），
+                        一个字节都不该改 —— 也不该指望它们给宿主留按钮；
+                     2) 三个仿真页共用同一条导出通路，按钮只有一份实现；
+                     3) 它必须落在 WebView2 矩形之外（airspace），这里天然满足。 -->
+                <Button x:Name="ExportButton" DockPanel.Dock="Right"
+                        Content="导出到白板（E）" Click="OnExportClick"
+                        Style="{StaticResource Style.DockButton}"
+                        Margin="0,0,10,0"
+                        ToolTip="把这个画面抓成图片放到卷面上，然后回到白板（快捷键 E）" />
+
+                <TextBlock x:Name="TitleText" Text="演示面板"
+                           Style="{StaticResource Style.TextTitle}"
+                           Margin="0,0,18,0" />
+
+                <!-- 面板自己的状态/报错在这里说一句话。刻意不放在 WebView2 里 ——
+                     JS 出错时页面自己不一定是好的，写在外面才有地方看得见。 -->
+                <TextBlock x:Name="StatusText" Text=""
+                           Style="{StaticResource Style.TextCaption}"
+                           TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+
+        <!-- WebView2 的落位。用 Border 而不是 Grid：它的内容由后端在运行时塞进来
+             （WebView2 控件要先初始化运行时环境，不能在 XAML 里直接声明）。
+             Background 必须是"纸白"：页面未加载完时露出的底色，
+             给透明或深色都会看成"闪黑" —— 而白只有一种白，用画布板的同一个值，
+             这样它与白板的卷面颜色永远一致。 -->
+        <Border x:Name="ViewHost" Background="{StaticResource Canvas.PageWhite}" />
+
+    </DockPanel>
+</Window>

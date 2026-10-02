@@ -1,0 +1,76 @@
+<Window x:Class="MathPhys.Ink.Design.Dialogs.TDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="数理墨"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        MinWidth="460"
+        MaxWidth="640"
+        FontFamily="{StaticResource Font.Family}"
+        FontSize="{StaticResource Text.Body}"
+        Background="{DynamicResource Ui.WindowBackground}">
+
+    <!-- ================================================================
+         自建弹窗（M10 S5）
+
+         ★ 为什么要自建：系统 <c>MessageBox</c> 是操作系统的原生窗口，
+           WPF 换不了皮。深色界面里弹出浅色系统框，观感是割裂的；
+           更实际的问题是**它在一体机上偏小**（正文 12 号，3 米外看不清），
+           而我们的提示里恰恰有「工程有未保存的改动」这种必须看懂的话。
+
+         ★ 返回值仍然是 <c>MessageBoxResult</c>：调用点与
+           ProjectClosePolicy.FromMessageBox 一行都不用改 ——
+           换的是"怎么画"，不是"回答是什么意思"。
+
+         ★ 文件对话框（打开/保存/选目录）**保持系统原生**：
+           老师对系统文件选择器最熟，自建它只会让人找不到自己熟悉的入口。
+         ================================================================ -->
+
+    <Border BorderBrush="{DynamicResource Ui.Divider}" BorderThickness="1">
+        <DockPanel>
+
+            <!-- 标题条。无边框窗口的拖动只能自己接：整条标题栏都能拖。 -->
+            <Border DockPanel.Dock="Top"
+                    Background="{DynamicResource Ui.ChromeBackground}"
+                    Padding="16,12"
+                    MouseLeftButtonDown="OnTitleBarMouseDown">
+                <TextBlock x:Name="TitleText"
+                           Text="数理墨"
+                           Style="{StaticResource Style.TextStrong}" />
+            </Border>
+
+            <!-- 按钮行：右对齐，从右往左依次是 确定 / 是 / 否 / 取消 -->
+            <StackPanel x:Name="ButtonRow"
+                        DockPanel.Dock="Bottom"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="16,4,16,16" />
+
+            <!-- 正文：图标 + 文字 -->
+            <StackPanel Orientation="Horizontal" Margin="16,16,16,12">
+                <Border x:Name="IconDot"
+                        Width="26" Height="26"
+                        CornerRadius="{StaticResource Corner.L}"
+                        VerticalAlignment="Top"
+                        Margin="0,2,12,0"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="IconGlyph"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="{StaticResource Text.BodyStrong}"
+                               FontWeight="{StaticResource Weight.SemiBold}"
+                               Foreground="{DynamicResource Ui.WindowBackground}" />
+                </Border>
+
+                <TextBlock x:Name="MessageText"
+                           TextWrapping="Wrap"
+                           MaxWidth="520"
+                           Foreground="{DynamicResource Ui.TextPrimary}" />
+            </StackPanel>
+
+        </DockPanel>
+    </Border>
+</Window>

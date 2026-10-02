@@ -1,0 +1,23 @@
+GeoGebra codebase 本地镜像清单（完整递归镜像）
+============================================================
+版本：5.4.920.0
+来源：https://www.geogebra.org/apps/5.4.920.0/
+抓取时间：2026-09-22T10:16:29.723Z
+文件数：9
+合计：8452961 bytes（8.06 MB）
+
+★ 未包含 giac（CAS 计算引擎，giac.js / giac.wasm，体积很大）。
+  几何／代数演示不需要它；若哪天要在面板里做符号计算，得另抓这两个文件。
+★ 许可：GeoGebra 为 GPL v3 且官方许可仅限非商业用途，本项目仅个人教学自用。
+  详见工程根目录 assets/第三方许可与署名.txt。
+
+文件清单（大小 / SHA256）：
+        5442  cc2c087959a5c0a814c43b4ebec37b9edb2a7c84317c8786f23f5082f2af5e53  web3d/web3d.nocache.js
+     7883230  e38ab0c7b77eb78cb7a7c43a7f3e392a6d4b8525f33a79c236d13f66834a24cc  web3d/0C7057AD68C986E5B1859BFB332A1012.cache.js
+          43  afe0dcfca292a0fae8bce08a48c14d3e59c9d82c6052ab6d48a22ecc6c48f277  web3d/clear.cache.gif
+       34562  e6fbee691ddc1047463ec3cdb6ea698a8cf129ca5309bb4c227df4997e57d939  css/bundles/simple-bundle.css
+      247228  8ceedd7f59c23faba15483c8fe8474b093c2c000f4369cc81493968a553fcff1  css/bundles/bundle.css
+        5630  5c122df63cc3b5e9340a1a642ad44f82ebb1992258b51a4fe3fae89ec8c076b4  css/keyboard-styles.css
+       10753  4e4e32f53dc14f9b05f4f5fb43eb2d968608e33fe68ad4694757266608d24efc  css/greek-font.css
+        7992  4fb321733ce0506bbaf150ececde5b62465e624ef42844d297a33564cf8f3dd9  css/fonts.css
+      258081  affe079d17861b3d3c643b05bb657c4ae7b92827c75244eb66f3a88d7abbacce  web3d/js/properties_keys_zh-CN.js

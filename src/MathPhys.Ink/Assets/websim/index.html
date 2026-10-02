@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+  index.html —— 物理仿真面板的自建导航页（M22 S5，M23 S5/S6 修订）
+
+  这是宿主 WebPanelProfile.WebSim 的入口页（EntryHtml）。它自己不是一个仿真，
+  而是「仿真页的路由壳」：
+      宿主 OpenAsync("circuitjs")  →  控制器发 openArgs {args:"circuitjs"}
+                                   →  本页显示 CircuitJS（iframe 加载官方离线包）
+      宿主 OpenAsync("phet-xxx")   →  本页按下方路由表显示对应 PhET 自包含页
+
+  为什么壳要自建、而仿真本体一个字节不改：
+    · 官方包（GeoGebra bundle / CircuitJS war / PhET）是第三方作品，原样分发；
+      「跟宿主说话」这件事只能由我们自己的页面承担。
+    · 页 Id 常量的生产方是插件（WebSimEntries），消费方是本页 ——
+      两边拼错一个字母的表现都是「点了没反应」，所以 Id 只从契约层常量来。
+
+  M23 S5 的三条修订（都是「点了没反应」的现场教训）：
+    1) iframe 加载必须可观测：挂 load 监听 + 30 秒看门狗，加载情况回 diagnostic，
+       超时回 loadFailed —— 之前 iframe 里白屏时宿主日志全绿，现场无从排查；
+    2) probe 探测缓存改成「每次宿主打招呼就清」：WebView2 实例是复用的（只隐藏不销毁），
+       旧缓存会让「首次探测失败」变成终身失败，除非重启程序；
+    3) 同一页 Id 只有在"上次没有正显示它"时才重设 src（防反复重载），
+       但 loadFailed / 超时之后 currentPage 会被清掉 —— 再点一次就是真正的重试。
+
+  协议（与 Assets/geogebra/bridge.js 同一套约定，信封恒为 {type, payload}）：
+      页面 → 宿主：ready / changed / error / loadFailed / selfTest / diagnostic
+      宿主 → 页面：hello（要求重发 ready）/ openArgs（载入参数）
+  ★ 任何异常都必须回一条 error，不许静默失败 —— 静默失败在这一头
+    表现为「点了没反应」，而宿主日志里什么都没有。
+-->
+<head>
+<meta charset="utf-8">
+<title>物理仿真</title>
+<style>
+  /* 面板是「讲给全班看」的画面：浅底深墨、大字、大可点面积。
+     刻意不接白板的界面主题 —— 它和 NativeSim 仿真窗同一逻辑：
+     会被整体投屏/截帧，永远用高对比的浅底深墨。 */
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #FAFAF7; color: #1E1E1E;
+    display: flex; flex-direction: column;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---- 首页（未指定页 Id 时的默认画面） ---- */
+  #home {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 28px;
+    padding: 32px; box-sizing: border-box;
+  }
+  #home h1 { font-size: 40px; margin: 0; font-weight: 700; }
+  #home p  { font-size: 20px; color: #4A5563; margin: 0; }
+  .cards { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .card {
+    width: 300px; padding: 28px 24px; border-radius: 12px;
+    background: #FFFFFF; border: 2px solid #E6E6DF;
+    box-sizing: border-box;
+  }
+  .card h2 { font-size: 24px; margin: 0 0 10px; color: #0B63C0; }
+  .card p  { font-size: 16px; margin: 0; color: #4A5563; line-height: 1.6; }
+  .card .tag {
+    display: inline-block; margin-top: 14px; padding: 3px 12px;
+    border-radius: 999px; font-size: 13px;
+    background: #E8F1FB; color: #0B63C0;
+  }
+  .card .tag.soon { background: #FDF0E7; color: #B05B12; }
+
+  /* ---- 占位（页 Id 尚未接入 / 资源缺失 / 加载超时） ---- */
+  #placeholder {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    padding: 48px; text-align: center;
+  }
+  #placeholder h2 { font-size: 28px; margin: 0; color: #4A5563; }
+  #placeholder p  { font-size: 18px; color: #8A8A84; margin: 0; max-width: 640px; line-height: 1.8; }
+
+  /* ---- 仿真承载区：iframe 占满顶栏以下全部 ---- */
+  #stage { flex: 1; position: relative; }
+  #stage iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: 0; display: block; background: #FFFFFF;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 首页：从白板「物理仿真窗」进来时通常带着页 Id，直接落到对应仿真；
+       不带参数（默认打开）时给出两张卡，告诉老师这里有什么。 -->
+  <div id="home">
+    <h1>物理仿真</h1>
+    <p>从白板工具栏「物理仿真」进入具体仿真；这个页面也可以直接演示。</p>
+    <div class="cards">
+      <div class="card">
+        <h2>电路模拟器</h2>
+        <p>CircuitJS 官方离线版。电池、电阻、电容、电感、开关、电流表电压表，
+           电流动画实时可看。</p>
+        <span class="tag">已携带</span>
+      </div>
+      <div class="card">
+        <h2>PhET 物理仿真集</h2>
+        <p>力学、振动与波、热学、电磁、光学、近代物理 —— 从白板「物理仿真」窗
+           按板块选择进入。</p>
+        <span class="tag">已携带</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 占位：页 Id 认识但资源没带（资源目录缺文件 / 加载超时）。 -->
+  <div id="placeholder" hidden>
+    <h2 id="phTitle">这一页还没有携带</h2>
+    <p id="phDetail"></p>
+  </div>
+
+  <!-- 仿真承载区：iframe 按需创建（一次创建反复复用，切换页 Id 不重建）。 -->
+  <div id="stage" hidden>
+    <iframe id="frame" title="仿真画面"></iframe>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var webview = (window.chrome && window.chrome.webview) ? window.chrome.webview : null;
+
+  /** 给宿主发一条消息。通道不存在（普通浏览器打开）时安静返回 false。 */
+  function post(type, payload) {
+    if (!webview) return false;
+    try {
+      var envelope = { type: type };
+      if (payload !== undefined && payload !== null) envelope.payload = payload;
+      webview.postMessage(envelope);
+      return true;
+    } catch (e) {
+      if (window.console && console.error) console.error('post 失败', e);
+      return false;
+    }
+  }
+
+  function reportError(where, e) {
+    var detail = (e && e.message) ? e.message : String(e);
+    post('error', { message: where + '：' + detail, kind: 'js' });
+  }
+
+  // ★ 任何未捕获异常都回 error —— 不许静默失败。
+  window.addEventListener('error', function (ev) {
+    reportError('页面脚本', ev.error || ev);
+  });
+
+  // ------------------------------------------------ 路由
+
+  var stage = document.getElementById('stage');
+  var frame = document.getElementById('frame');
+  var home = document.getElementById('home');
+  var placeholder = document.getElementById('placeholder');
+  var phTitle = document.getElementById('phTitle');
+  var phDetail = document.getElementById('phDetail');
+
+  var currentPage = '';
+
+  // ---- PhET 路由表（★ 由 tools/fetch_phet.py 生成：两标记之间勿手改）----
+  // PHET-ROUTES:BEGIN
+var phetRoutes = {
+    'phet-forces-and-motion-basics': { file: 'phet/forces-and-motion-basics_zh_CN.html', title: '力与运动：基础' },
+    'phet-friction': { file: 'phet/friction_zh_CN.html', title: '摩擦力' },
+    'phet-hookes-law': { file: 'phet/hookes-law_zh_CN.html', title: '胡克定律' },
+    'phet-balancing-act': { file: 'phet/balancing-act_zh_CN.html', title: '杠杆平衡' },
+    'phet-projectile-motion': { file: 'phet/projectile-motion_zh_CN.html', title: '抛体运动' },
+    'phet-collision-lab': { file: 'phet/collision-lab_zh_CN.html', title: '碰撞实验室' },
+    'phet-energy-skate-park': { file: 'phet/energy-skate-park_zh_CN.html', title: '能量滑板公园' },
+    'phet-energy-skate-park-basics': { file: 'phet/energy-skate-park-basics_zh_CN.html', title: '能量滑板公园：入门' },
+    'phet-energy-forms-and-changes': { file: 'phet/energy-forms-and-changes_zh_CN.html', title: '能量的形式与转化' },
+    'phet-gravity-force-lab': { file: 'phet/gravity-force-lab_zh_CN.html', title: '重力实验室' },
+    'phet-gravity-force-lab-basics': { file: 'phet/gravity-force-lab-basics_zh_CN.html', title: '重力实验室：基础' },
+    'phet-gravity-and-orbits': { file: 'phet/gravity-and-orbits_zh_CN.html', title: '重力与轨道' },
+    'phet-masses-and-springs': { file: 'phet/masses-and-springs_zh_CN.html', title: '质量与弹簧' },
+    'phet-masses-and-springs-basics': { file: 'phet/masses-and-springs-basics_zh_CN.html', title: '质量与弹簧：基础' },
+    'phet-density': { file: 'phet/density_zh_CN.html', title: '密度' },
+    'phet-vector-addition': { file: 'phet/vector-addition_zh_CN.html', title: '矢量合成' },
+    'phet-pendulum-lab': { file: 'phet/pendulum-lab_zh_CN.html', title: '单摆实验' },
+    'phet-waves-intro': { file: 'phet/waves-intro_zh_CN.html', title: '波入门' },
+    'phet-wave-on-a-string': { file: 'phet/wave-on-a-string_zh_CN.html', title: '弦上的波' },
+    'phet-wave-interference': { file: 'phet/wave-interference_zh_CN.html', title: '波的干涉' },
+    'phet-fourier-making-waves': { file: 'phet/fourier-making-waves_zh_TW.html', title: '傅里叶：造波' },
+    'phet-bending-light': { file: 'phet/bending-light_zh_CN.html', title: '光的折射' },
+    'phet-geometric-optics': { file: 'phet/geometric-optics_zh_CN.html', title: '几何光学' },
+    'phet-color-vision': { file: 'phet/color-vision_zh_CN.html', title: '颜色视觉' },
+    'phet-balloons-and-static-electricity': { file: 'phet/balloons-and-static-electricity_zh_CN.html', title: '气球与静电' },
+    'phet-john-travoltage': { file: 'phet/john-travoltage_zh_CN.html', title: '约翰的静电' },
+    'phet-charges-and-fields': { file: 'phet/charges-and-fields_zh_CN.html', title: '电荷与电场' },
+    'phet-ohms-law': { file: 'phet/ohms-law_zh_CN.html', title: '欧姆定律' },
+    'phet-resistance-in-a-wire': { file: 'phet/resistance-in-a-wire_zh_CN.html', title: '导线的电阻' },
+    'phet-capacitor-lab-basics': { file: 'phet/capacitor-lab-basics_zh_CN.html', title: '电容器实验室：基础' },
+    'phet-circuit-construction-kit-dc': { file: 'phet/circuit-construction-kit-dc_zh_CN.html', title: '电路组装套件：直流' },
+    'phet-circuit-construction-kit-dc-virtual-lab': { file: 'phet/circuit-construction-kit-dc-virtual-lab_zh_CN.html', title: '电路组装套件：直流·虚拟实验室' },
+    'phet-circuit-construction-kit-ac': { file: 'phet/circuit-construction-kit-ac_zh_CN.html', title: '电路组装套件：交流' },
+    'phet-circuit-construction-kit-ac-virtual-lab': { file: 'phet/circuit-construction-kit-ac-virtual-lab_zh_CN.html', title: '电路组装套件：交流·虚拟实验室' },
+    'phet-magnet-and-compass': { file: 'phet/magnet-and-compass_zh_CN.html', title: '磁铁与指南针' },
+    'phet-magnets-and-electromagnets': { file: 'phet/magnets-and-electromagnets_zh_CN.html', title: '磁铁与电磁铁' },
+    'phet-faradays-law': { file: 'phet/faradays-law_zh_CN.html', title: '法拉第电磁感应定律' },
+    'phet-molecule-polarity': { file: 'phet/molecule-polarity_zh_CN.html', title: '分子极性' },
+    'phet-gases-intro': { file: 'phet/gases-intro_zh_CN.html', title: '气体入门' },
+    'phet-gas-properties': { file: 'phet/gas-properties_zh_CN.html', title: '气体性质' },
+    'phet-under-pressure': { file: 'phet/under-pressure_zh_CN.html', title: '液体压强' },
+    'phet-my-solar-system': { file: 'phet/my-solar-system_zh_CN.html', title: '我的太阳系' },
+    'phet-isotopes-and-atomic-mass': { file: 'phet/isotopes-and-atomic-mass_zh_CN.html', title: '同位素与原子质量' },
+    'phet-rutherford-scattering': { file: 'phet/rutherford-scattering_zh_CN.html', title: '卢瑟福散射' },
+    'phet-models-of-the-hydrogen-atom': { file: 'phet/models-of-the-hydrogen-atom_zh_CN.html', title: '氢原子模型' },
+  };
+  // PHET-ROUTES:END
+
+  function showHome() {
+    currentPage = '';
+    stage.hidden = true;
+    placeholder.hidden = true;
+    home.hidden = false;
+    disarmFrameWatch();
+  }
+
+  function showPlaceholder(title, detail) {
+    currentPage = '';
+    stage.hidden = true;
+    home.hidden = true;
+    placeholder.hidden = false;
+    phTitle.textContent = title;
+    phDetail.textContent = detail;
+    disarmFrameWatch();
+  }
+
+  function showSim(pageId, relPath) {
+    home.hidden = true;
+    placeholder.hidden = true;
+    stage.hidden = false;
+    // 同一页只有在上次没有正显示它时才重设 src：反复设置会让官方应用整个重来。
+    // ★ loadFailed / 看门狗超时之后 currentPage 已被清掉 —— 再点一次就是真正的重试（M23）。
+    if (currentPage !== pageId) {
+      armFrameWatch(pageId);
+      frame.src = relPath;
+    }
+    currentPage = pageId;
+  }
+
+  // ------------------------------------------------ iframe 看门狗（M23 S5）
+
+  // iframe 里的加载失败不会冒泡到宿主的 NavigationCompleted（docs/25 里就承认过），
+  // 之前白屏时宿主日志全绿 —— 现在挂 load 监听 + 超时看门狗，两条路都说话。
+  var frameTimer = null;
+
+  function armFrameWatch(pageId) {
+    disarmFrameWatch();
+    frameTimer = window.setTimeout(function () {
+      frameTimer = null;
+      post('loadFailed', {
+        reason: '仿真页 30 秒没有加载完成',
+        detail: pageId + '：官方离线包可能不完整，或页面脚本没能启动。请重试一次；'
+              + '反复出现请重新解压完整测试包。'
+      });
+      showPlaceholder('仿真没有加载出来',
+        '等待 30 秒后仍未完成加载。可以再点一次重试；反复出现请换用完整测试包'
+        + '（或运行 tools/ 下的 fetch_circuitjs.py / fetch_phet.py 重新取回资源）。');
+    }, 30000);
+  }
+
+  function disarmFrameWatch() {
+    if (frameTimer !== null) {
+      window.clearTimeout(frameTimer);
+      frameTimer = null;
+    }
+  }
+
+  frame.addEventListener('load', function () {
+    disarmFrameWatch();
+    // 同一虚拟域名 ⇒ 同源，能读到 iframe 内部状态；读不了也不妨事（只少一条诊断）。
+    var info = '(不可读)';
+    try {
+      var doc = frame.contentDocument;
+      if (doc) {
+        info = 'readyState=' + doc.readyState + ' url=' + doc.URL;
+        // 官方 GWT 应用若整个没起来，body 往往是空的 —— 把这个也报出去。
+        if (doc.body && doc.body.childElementCount === 0) {
+          info += ' body=空（应用可能没启动）';
+        }
+      }
+    } catch (e) {
+      info = '(跨域不可读)';
+    }
+    post('diagnostic', { text: 'iframe load：' + info });
+  });
+
+  frame.addEventListener('error', function () {
+    disarmFrameWatch();
+    post('loadFailed', {
+      reason: '仿真页加载出错（iframe error）',
+      detail: '离线资源可能缺失。请重新解压完整测试包。'
+    });
+  });
+
+  // ------------------------------------------------ 资源探测
+
+  /** 官方离线资源在不在（HEAD 探测）。★ 缓存只在「宿主打招呼」时清 —— 见 onHostMessage。 */
+  var probeCache = {};
+  function probe(rel) {
+    if (probeCache[rel] !== undefined) return Promise.resolve(probeCache[rel]);
+    return fetch(rel, { method: 'HEAD' })
+      .then(function (r) { probeCache[rel] = r.ok; return r.ok; })
+      .catch(function () { probeCache[rel] = false; return false; });
+  }
+
+  function probeThenShow(pageId, rel, failTitle, failReason, failDetail) {
+    return probe(rel).then(function (ok) {
+      if (ok) { showSim(pageId, rel); return; }
+      // 资源缺失必须说出口，而且走 loadFailed ——
+      // 否则宿主那头还等着命令成功，现场看到的就是白屏。
+      post('loadFailed', { reason: failReason, detail: failDetail });
+      showPlaceholder(failTitle, failDetail);
+    });
+  }
+
+  // 页 Id 常量与契约层 WebSimPages 一致（改动必须两边同步）。
+  function route(pageId) {
+    if (!pageId) { showHome(); return; }
+
+    if (pageId === 'circuitjs') {
+      probeThenShow('circuitjs', 'circuitjs/circuitjs.html',
+        '电路模拟器没有就位',
+        '电路模拟器离线资源缺失（circuitjs 目录不完整）',
+        '请重新解压完整测试包，或运行 tools/fetch_circuitjs.py 重新取回。');
+      return;
+    }
+
+    var phet = phetRoutes[pageId];
+    if (phet) {
+      probeThenShow(pageId, phet.file,
+        phet.title + ' 没有就位',
+        phet.title + ' 离线资源缺失（' + phet.file + '）',
+        '请重新解压完整测试包，或运行 tools/fetch_phet.py 重新取回。');
+      return;
+    }
+
+    showPlaceholder('不认识的仿真页', '页 Id：' + pageId);
+  }
+
+  // ------------------------------------------------ 宿主消息
+
+  function onHostMessage(message) {
+    try {
+      var type = message && message.type;
+      if (type === 'hello') {
+        // 宿主在"重新挂载"（关了再开 / 形态切换）后会来打招呼；
+        // 页面本体一直在跑，但要重发 ready 把宿主侧的就绪闸门放行。
+        // ★ M23：顺手把探测缓存清掉 —— WebView2 实例是复用的（只隐藏不销毁），
+        //   旧缓存会让「首次探测失败」变成终身失败。每次打开都重新探一遍。
+        probeCache = {};
+        post('ready', null);
+        return;
+      }
+      if (type === 'openArgs') {
+        var args = message.payload ? message.payload.args : '';
+        route(args ? String(args) : '');
+        return;
+      }
+    } catch (e) {
+      reportError('处理宿主消息', e);
+    }
+  }
+
+  if (webview) {
+    try {
+      webview.addEventListener('message', function (ev) {
+        onHostMessage(ev.data);
+      });
+    } catch (e) {
+      reportError('挂接宿主消息监听', e);
+    }
+  }
+
+  // ------------------------------------------------ 启动与自检
+
+  function runSelfTest() {
+    // ?selftest=1（发布冒烟用）：核对离线资源在不在，把结果回报给宿主，
+    // 让「断网可用」有一条可断言的日志证据，而不是只能靠人看截图。
+    var checks = [];
+    function head(rel) {
+      return fetch(rel, { method: 'HEAD' })
+        .then(function (r) { checks.push(rel + ':' + (r.ok ? 'ok' : 'http' + r.status)); return r.ok; })
+        .catch(function () { checks.push(rel + ':fetch-error'); return false; });
+    }
+    var probes = [
+      head('circuitjs/circuitjs.html'),
+      head('circuitjs/circuitjs1/circuitjs1.nocache.js'),
+      head('circuitjs/lz-string.min.js'),
+      head('circuitjs/font/fontello.css')
+    ];
+    // 顺手探一个 PhET 路由（表里的第一个），把「PhET 资源在不在」也变成日志证据。
+    var firstPhet = null;
+    for (var id in phetRoutes) { if (phetRoutes.hasOwnProperty(id)) { firstPhet = phetRoutes[id]; break; } }
+    if (firstPhet) probes.push(head(firstPhet.file));
+    Promise.all(probes).then(function (results) {
+      var allOk = results.every(function (x) { return x; });
+      post('selfTest', { ok: allOk, checks: checks.join(', ') });
+    }).catch(function (e) {
+      reportError('自检', e);
+    });
+  }
+
+  // DOM 就绪即可发 ready：本页对宿主命令的处理只依赖 DOM，
+  // 仿真的加载在自己内部完成（失败走 loadFailed / error，不等宿主命令）。
+  document.addEventListener('DOMContentLoaded', function () {
+    post('ready', null);
+
+    // ?selftest=1 / ?selftest=2 都触发自检（与 GeoGebra 页同一约定）。
+    if (window.location.search.indexOf('selftest=') >= 0) {
+      // 稍等一拍再探测：避免与宿主第一条 openArgs 竞争 fetch 缓存。
+      window.setTimeout(runSelfTest, 50);
+    }
+  });
+})();
+</script>
+</body>
+</html>

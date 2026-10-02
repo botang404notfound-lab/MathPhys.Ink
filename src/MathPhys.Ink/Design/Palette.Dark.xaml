@@ -1,0 +1,66 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options">
+
+    <!-- ================================================================
+         界面板 · 深色（M10 S0，出厂默认色板）
+
+         ★ 这本字典是**界面色唯一的数据来源**（docs/15 §3.3）。
+           任何界面颜色都必须在这里出现且只在这里出现 ——
+           XAML 侧用 {DynamicResource Ui.Xxx} 引用，
+           C# 侧用 Tokens.Brush("Ui.Xxx") 取值，谁都不许再写一遍色值。
+
+         ★ 为什么全部 po:Freeze="True"：
+           冻结的 Freezable 不可再被改写，杜绝"某个控件改了共享画刷、
+           结果整个界面跟着变色"这类跨窗口串色（harness 有断言）。
+
+         ★ 深色 = M10 之前界面上**正在用的那些值**，逐个搬进来。
+           S0 的验收判据就是"换了写法、颜色一个像素都没变"。
+
+         ★ 换肤时整本被替换成 Palette.Light.xaml（同名键、不同值），
+           所以两本字典的**键必须严格一一对应**（harness 有断言）。
+         ================================================================ -->
+
+    <!-- ================ 窗口与铬色（工具栏 / 状态栏 / 停靠条）================ -->
+    <SolidColorBrush x:Key="Ui.WindowBackground" Color="#FF1E1E1E" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.ChromeBackground" Color="#FF33332F" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.Divider" Color="#FF55554E" po:Freeze="True" />
+
+    <!-- ================ 文字三级 ================
+         强文字（文件名 / 标题）> 次级（页数 / 状态）> 弱化（分组标签 / 底部提示）。
+         刻意只留三级：层级一多，"哪个该灰一点"就没人说得清了。 -->
+    <SolidColorBrush x:Key="Ui.TextPrimary" Color="#FFF1EFE8" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.TextSecondary" Color="#FFB4B2A9" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.TextMuted" Color="#FF8A887F" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.TextDisabled" Color="#FF6A6862" po:Freeze="True" />
+
+    <!-- ================ 状态色（只用于状态，不做装饰）================ -->
+    <!-- ★ 未保存 / 警告是两个**语义**，M10 之前它们与墨橙共用一个值。
+         拆开之后，"改未保存的提示色"不会再顺手把橙笔的颜色也改掉。 -->
+    <SolidColorBrush x:Key="Ui.StatusDirty" Color="#FFE86A0B" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.StatusWarning" Color="#FFE8B02B" po:Freeze="True" />
+    <!-- 错误（"这个文件打不开""保存失败"）：比警告更重，必须一眼看出是"没成功" -->
+    <SolidColorBrush x:Key="Ui.StatusError" Color="#FFDC2626" po:Freeze="True" />
+
+    <!-- ================ 主色（低干扰：只标"当前状态"）================
+         M10 之前整个界面没有主色，选中态借用正文色。取**墨蓝同源** #0B5FD0：
+         它与老师手里那支蓝笔是同一个蓝，界面与笔是一套东西。 -->
+    <SolidColorBrush x:Key="Ui.Accent" Color="#FF0B5FD0" po:Freeze="True" />
+    <!-- 选中态的**底**：极淡的一层，只用来"托"出当前项，不抢视线 -->
+    <SolidColorBrush x:Key="Ui.AccentSoft" Color="#33265FEB" po:Freeze="True" />
+    <!-- 画在主色**上面**的文字/符号色。深色浅色同值：主色本身不随主题变。 -->
+    <SolidColorBrush x:Key="Ui.OnAccent" Color="#FFFFFFFF" po:Freeze="True" />
+
+    <!-- ================ 浮层与控件底（半透明）================
+         ★ 这几项是**深色才成立**的：白描边画在浅底上会完全看不见，
+           所以浅色板必须逐项换成黑系（见 Palette.Light.xaml）。 -->
+    <SolidColorBrush x:Key="Ui.OverlayPanel" Color="#E633332F" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.OverlayBorder" Color="#60FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.FieldBackground" Color="#40000000" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.FieldBorder" Color="#50FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.ControlSurface" Color="#35FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.ControlHover" Color="#48FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.ControlPressed" Color="#66FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="Ui.ControlDisabled" Color="#1AFFFFFF" po:Freeze="True" />
+
+</ResourceDictionary>

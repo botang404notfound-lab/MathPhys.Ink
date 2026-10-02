@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MathPhys.Ink.Plugin.CoordSystem</RootNamespace>
+    <AssemblyName>coordsystem</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

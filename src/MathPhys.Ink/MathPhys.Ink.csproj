@@ -1,0 +1,92 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- 明确不启用 WinForms：PDF 走离屏渲染，禁止 WindowsFormsHost（见设计方案 §3.4） -->
+    <UseWindowsForms>false</UseWindowsForms>
+    <RootNamespace>MathPhys.Ink</RootNamespace>
+    <AssemblyName>MathPhys.Ink</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 希沃一体机是 x64，原生 pdfium DLL 也只提供 x64 -->
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 插件契约。必须引用同一份：插件用 AssemblyLoadContext 单独加载时，
+         这一份要被"共享"给插件，否则会出现两个同名不同类型的 IWhiteBoardPlugin。 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 插件目录说明。随程序发布到 plugins\说明.txt：老师拿到的是"解压就能用"的文件夹，
+         这份说明必须在插件目录里躺着，而不是只存在于我们的开发文档里。 -->
+    <None Include="Assets\plugins\说明.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>plugins\说明.txt</TargetPath>
+    </None>
+
+    <!-- 第三方许可与署名（M7.5 S4）。随程序发布到 exe 旁：
+         GeoGebra 许可要求署名 —— 包里一份（这份）+ 界面角标一处（index.html #credit）。
+         ★ TargetPath 必须显式给：None 条目默认保留 Include 的相对路径，
+           不写会拷进 Assets\ 子目录，署名文件就不在包顶了。 -->
+    <None Include="Assets\第三方许可与署名.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>第三方许可与署名.txt</TargetPath>
+    </None>
+
+    <!-- 面向非程序员的包内操作卡（M9 S4 起）。随程序发布到 exe 旁。
+         ★ 为什么必须放在 Assets\ 里、跟着 publish 走：
+           M9 S4 时它是手工写进 dist\tablet\ 的，源文件只活在"打包暂存目录"里。
+           一旦清空暂存目录（M9 收尾清理时真的发生了），源头就只剩 zip 里那一份，
+           下次重建暂存目录会静默丢件 —— 而 tools\_m9_pack.py 还要靠它派生轻量版操作卡。
+           放进 Assets\ 后：publish 自带，改内容只需改这一个文件，两个包自动同步。
+         ★ TargetPath 必须显式给（同署名文件）：否则会被拷进 Assets\ 子目录，不在包顶。 -->
+    <None Include="Assets\怎么测试.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>怎么测试.txt</TargetPath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GeoGebra 演示面板的离线资源（M7.5）。整目录原样复制到输出目录的 geogebra\，
+             运行时用 SetVirtualHostNameToFolderMapping 映射成虚拟域名给 WebView2 用。
+             ★ 这些文件必须"原样"发布：Bundle 一旦被改写，就无法再声称"我们用的是官方包"。 -->
+    <Content Include="Assets\geogebra\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>geogebra\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </Content>
+    <!-- 物理仿真面板的离线资源（M22 S5）：自建导航页 + CircuitJS 官方离线包
+         （由 tools/fetch_circuitjs.py 取回，官方文件一个字节不改）。
+         轻量版打包时整个 websim\ 目录被剔除（tools/_m9_pack.py 的 DROP_TOP）。 -->
+    <Content Include="Assets\websim\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>websim\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PDF 解析与离屏渲染：PdfiumViewer（Bluegrams fork）。
+         原版 pvginkel/PdfiumViewer 已归档，用 Bluegrams fork。 -->
+    <PackageReference Include="PdfiumViewer.Updated" Version="2.14.5" />
+    <!-- 原生 pdfium DLL（x64）。主包不带原生库，缺了会在运行时崩，必须单独引用。 -->
+    <PackageReference Include="PdfiumViewer.Native.x86_64.v8-xfa" Version="2018.4.8.256" />
+    <!-- WebView2 SDK（M7.5）：重型演示面板（GeoGebra）的宿主控件。
+         ★ 这个包只带"控件与 API"，不带浏览器运行时本身：
+           运行时（或 Fixed Version 运行时目录）要另外解决，见 docs/12 §4.4。 -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+    <!-- PDF 生成（M9 导出）。PdfSharpCore 是 PdfSharp 的 .NET Core 移植，MIT，含商用。
+         ★ 许可要点：它依赖的 SixLabors.ImageSharp / SixLabors.Fonts 在"作为 PdfSharpCore 的一部分
+           分发"时按 Apache 2.0 处理（见包内 LICENSE 说明），且 1.3.x 依赖的是 ImageSharp 1.0.4
+           （本身即 Apache 2.0）—— 不触及 Six Labors 从 2.x 起的分成许可，无额外义务。
+         ★ 版本：1.3.67 是当前最新稳定版（2025-04），netstandard2.0/net8.0 均兼容；M9 计划里
+           写的 1.3.65 是 2024-07 的版本，同一系列、同一 API，此处取新。 -->
+    <PackageReference Include="PdfSharpCore" Version="1.3.67" />
+  </ItemGroup>
+
+</Project>

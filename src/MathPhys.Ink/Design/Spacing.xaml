@@ -1,0 +1,141 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- ================================================================
+         间距 / 圆角 / 触摸尺寸（M10 S2）
+
+         ★ 间距一律取 **4 的倍数**：一眼能看出"谁比谁大"，
+           也顺手挡掉 6 / 7 / 9 这类随手写出来的值 ——
+           现状的 10 种 Padding 就是这么攒出来的。
+
+         ★ Touch.Min = 40 是**硬约束**（不是建议）：
+           一体机是手指在点，Windows 给触摸定的最小可点目标是 40~48 DIP。
+           harness 会断言控件模板的最小边长不低于它。
+         ================================================================ -->
+
+    <!-- ================ 间距（4 的倍数）================ -->
+    <sys:Double x:Key="Space.XS">4</sys:Double>
+    <sys:Double x:Key="Space.S">8</sys:Double>
+    <sys:Double x:Key="Space.M">12</sys:Double>
+    <sys:Double x:Key="Space.L">16</sys:Double>
+
+    <!-- ================ 触摸尺寸（3 档）================ -->
+    <!-- 紧凑：工具栏上的次操作（缩放、笔宽档位）—— 仍然不低于 40 宽 -->
+    <sys:Double x:Key="Touch.Compact">36</sys:Double>
+    <!-- ★ 标准：可点目标的最小边长，任何按钮都不许小于它 -->
+    <sys:Double x:Key="Touch.Min">40</sys:Double>
+    <!-- 大：停靠条、演示窗（手指为主的大按钮）。
+         ★ 取 48 而不是 44：M7.5 给演示面板定过一条硬判据 ——
+           「返回白板」这类退路按钮必须 ≥48 DIP（一体机上手指点得着）。
+           设计系统收尺寸档位时不能把已有的下限收小了，
+           所以这一档取二者中更大的那个。 -->
+    <sys:Double x:Key="Touch.Large">48</sys:Double>
+
+    <!-- ================ 圆角（3 档）================ -->
+    <sys:Double x:Key="Radius.S">6</sys:Double>
+    <sys:Double x:Key="Radius.M">8</sys:Double>
+    <sys:Double x:Key="Radius.L">12</sys:Double>
+
+    <CornerRadius x:Key="Corner.S">6</CornerRadius>
+    <CornerRadius x:Key="Corner.M">8</CornerRadius>
+    <CornerRadius x:Key="Corner.L">12</CornerRadius>
+
+    <!-- ================ 组合好的内边距 / 间隙 ================
+         直接给 XAML 用（Padding / Margin 需要 Thickness，不能拿 Double 顶上）。
+         现状那 10 种 Padding 收成这 6 种。 -->
+    <Thickness x:Key="Pad.Toolbar">12,8</Thickness>
+    <Thickness x:Key="Pad.StatusBar">12,6</Thickness>
+    <Thickness x:Key="Pad.DockBar">12,8</Thickness>
+    <Thickness x:Key="Pad.Button">14,8</Thickness>
+    <Thickness x:Key="Pad.ButtonCompact">10,6</Thickness>
+    <Thickness x:Key="Pad.DockButton">16,10</Thickness>
+
+    <!-- 按钮之间 / 分组之间 / 分隔线四周的间隙 -->
+    <Thickness x:Key="Gap.Button">0,0,6,0</Thickness>
+    <Thickness x:Key="Gap.Group">0,0,8,0</Thickness>
+    <Thickness x:Key="Gap.Separator">0,4,8,4</Thickness>
+    <Thickness x:Key="Gap.Label">0,0,6,0</Thickness>
+    <!-- 瓦片间隙（M16）：方形工具栏里按钮会换行，右+下都留缝，行距才均匀 -->
+    <Thickness x:Key="Gap.Tile">0,0,6,6</Thickness>
+
+    <!-- ================ 瓦片单元（M20 S1：从 Buttons.xaml 里提出来的裸值）================
+         提成令牌不只是为了复用，而是因为工具栏分组（M20 S4）要按
+         「每组放得下几个瓦片 ⇒ 每行换几个」来算版面 —— 这几个数必须能
+         被一起找到、一起改，否则算出来的行数和实际换行对不上。
+
+         ★★ M20 S4 把 Tile.Pad 的**竖直**部分从 3 收到 0（改成 2,0）：
+           瓦片高度是「图标 24 + 文字 ~18 + 上下内边距」，而工具栏有 11 行 ——
+           竖直内边距每多 1px，整体就多 11px。分组之后工具瓦片从"纯文字"换成
+           "图标 + 文字"，本身就比原来高，再留着 3px 的上下缝，整条工具栏就
+           长过了一体机的屏幕高度（720）会把最下面一行顶出屏幕外。
+           收掉之后瓦片高度正好落回 Tile.MinHeight(44)，且 ≥ Touch.Min(40) 的下限没破。
+           竖直方向不再有内边距 ≠ 内容顶到边：图标与文字仍在 44 的格子里居中。 -->
+    <sys:Double x:Key="Tile.Width">76</sys:Double>
+    <sys:Double x:Key="Tile.MinHeight">44</sys:Double>
+    <Thickness x:Key="Tile.Pad">2,0</Thickness>
+    <sys:Double x:Key="Tile.TextMaxWidth">70</sys:Double>
+
+    <!-- 瓦片里"图标与文字之间"的那条缝。原来是 2（+上下别的 3px 一起凑成 50 高），
+         S4 收到 1：这一处不省，瓦片就压不回 44。 -->
+    <Thickness x:Key="Tile.TextGap">0,1,0,0</Thickness>
+
+    <!-- ================ 工具栏铬尺寸 ================
+         ★ 把手 30 / 收起钮 26 是**一体机触摸的物理约束**，不是随手写的数：
+           把手要够宽手指才抓得住、收起钮要够大才点得中。
+           token 化的意义在于把「这两个数有讲究」命名记录下来 ——
+           免得下次有人看着别扭，把它改成 20。
+         ★ Chrome.MaxWidth 是 M16 方形工具栏的限宽（决定每行几个瓦片），
+           M20 S4 分组后要复核这个值，所以必须可被命名地找到。 -->
+    <sys:Double x:Key="Chrome.GripHeight">30</sys:Double>
+    <sys:Double x:Key="Chrome.CollapseHeight">26</sys:Double>
+    <sys:Double x:Key="Chrome.MaxWidth">500</sys:Double>
+
+    <!-- ================ 分组（M20 S4）================
+         组块之间用纵向间隙；组标题与组内容之间用更小的一档。
+         ★ 注意与上面 Gap.Group(0,0,8,0) 的区别：那个是**横向**语义
+           （同一行里与下一个元素分开），这里是**纵向**语义。
+           两个都要留着，不要拿一个顶替另一个。 -->
+    <Thickness x:Key="Gap.GroupBlock">0,0,0,8</Thickness>
+    <Thickness x:Key="Gap.GroupHeader">0,0,0,4</Thickness>
+
+    <!-- 组与组之间那条全宽横线的上下留白。
+         ★ S4 定稿从 6 收到 4：工具栏一共三条横线，每条省 4px 就是 12px ——
+           整数不多，但这是"能否在一体机 720 高的屏上不被状态栏压住"的余量，
+           比"看着更透气"要紧。4 与 Space.XS 同档，也不会挤到让两组读成一组。 -->
+    <Thickness x:Key="Gap.GroupDivider">0,4,0,4</Thickness>
+
+    <!-- 组标题窄标签的内边距（高度由 Tile.MinHeight 给，这里只管左右） -->
+    <Thickness x:Key="Pad.GroupChip">10,0</Thickness>
+
+    <!-- 族主瓦片与展开箭头之间的缝。取 2 而不是 Gap.Tile(6)：
+         两颗按钮要读成"一颗分裂按钮"，缝大了就成"两颗不相干的按钮"。 -->
+    <Thickness x:Key="Gap.Chevron">2,0,0,0</Thickness>
+
+    <!-- 二级菜单里一行的最小宽度（M20 S4）。
+         200 是按最长的成员名（「直尺·自由角」+ 24 的图标）定的：
+         短名字的行也照这个宽度 ⇒ 整列左对齐、右边缘齐平，
+         不会出现"这一行比上一行短一截"的锯齿。 -->
+    <sys:Double x:Key="Menu.MinWidth">200</sys:Double>
+
+    <!-- ================ 浮层（Popup）内边距 ================ -->
+    <Thickness x:Key="Pad.Popup">12</Thickness>
+
+    <!-- 输入框内边距（参数面板的数值框）。比 Pad.Button 更扁：
+         数值框是「窄而高」的，上下少留缝才不至于把数字挤掉。 -->
+    <Thickness x:Key="Pad.Field">6,4,6,4</Thickness>
+
+    <!-- ================ 焦点环 / 勾选框 ================
+         Focus.RingThickness：焦点环线宽（M20 S2）。
+         Ind.CheckSize：勾选框的方框边长 —— 22 刻意小于 Touch.Min(40)，
+           因为它是**指示器**不是点击目标，点击目标由 CheckBox 控件本身
+           的整体高度保证（见 Inputs.xaml 的 MinHeight）。 -->
+    <sys:Double x:Key="Focus.RingThickness">2</sys:Double>
+    <sys:Double x:Key="Ind.CheckSize">22</sys:Double>
+
+    <!-- 二级菜单箭头上的小圆点（M20 S4）：直径 8。
+         它只表示"族里有一个非代表成员正被使用"，是个提示不是控件，
+         所以远小于 Touch.Min 是**刻意**的（比它大的话，在 40 宽的箭头里就顶到边了）。 -->
+    <sys:Double x:Key="Ind.DotSize">8</sys:Double>
+
+</ResourceDictionary>

@@ -1,0 +1,68 @@
+<UserControl x:Class="MathPhys.Ink.Views.Controls.CanvasViewportHost"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:MathPhys.Ink.Views.Controls"
+             ClipToBounds="True"
+             Focusable="True"
+             IsManipulationEnabled="True"
+             Stylus.IsPressAndHoldEnabled="False"
+             Stylus.IsFlicksEnabled="False">
+
+    <!-- 视口层：尺寸恒等于宿主，只负责裁剪。
+
+         底色 = 纯白：页外留白、页与页之间的缝隙、以及文档范围之外的无限远处，
+         看到的都是这一层，于是整个视口连成一张"纸"。
+
+         注意它<b>不参与世界层的缩放</b>（在世界层之外），所以底色本身不随缩放变化。 -->
+    <Grid x:Name="RootGrid" Background="{StaticResource Canvas.PageWhite}">
+
+        <!-- 世界层：整个程序唯一的缩放/平移入口。
+             WPF 输入系统会自动把笔/鼠标坐标过一遍它的逆矩阵，
+             所以 M3 加进来的笔迹层天然落在世界坐标，不需要任何坐标补偿。 -->
+        <Canvas x:Name="WorldHost" RenderTransformOrigin="0,0">
+            <Canvas.RenderTransform>
+                <MatrixTransform x:Name="WorldTransform" />
+            </Canvas.RenderTransform>
+
+            <!-- PDF 底图层：每页一个矩形底 + 一个 Image，位置为世界坐标 -->
+            <Canvas x:Name="PdfPageLayer" />
+
+            <!-- 图形对象层（M7.4）：学科工具落成的矢量图形（坐标系 / 函数图像 / 量角器 / 矢量箭头…）。
+
+                 位置刻意在墨迹层<b>下面</b>：主力用法是批注，老师在图上层写的字必须清晰可见；
+                 图形（网格、半透明量角器）压在字上面会把卷面弄脏。
+
+                 整层 IsHitTestVisible=False：命中测试由 GfxObjectStore 自己算（世界坐标几何运算）。
+                 三条理由，都很硬：
+                   ① 不让图形抢输入 —— 一旦抢，就会出现"看着笔尖在纸上却写不出字"（M7.3 的教训）；
+                   ② 手柄命中半径要按**屏幕**像素算（手指点得中），WPF 命中测试给不了这个语义；
+                   ③ 自算的命中测试可以脱离渲染在验收 harness 里断言。 -->
+            <Canvas x:Name="GfxLayer" IsHitTestVisible="False" />
+
+            <!-- 笔迹层：必须是 WorldHost 的直接子元素（与 PDF 共用同一个矩阵），
+                 且本地原点必须落在世界原点上（Left/Top=0，尺寸 = WorldLayout.InkExtent）。
+                 满足这两条，WPF 输入系统就会自动把笔尖坐标过一遍世界层的逆矩阵，
+                 Stroke 里存的直接是世界坐标 —— "笔迹随画布变换不漂移"是推论，不是要维护的代码。
+
+                 Background 必须是 Transparent 而不是 null：Background=null 的元素只在
+                 画了内容的像素上响应命中，整片空白区会收不到笔输入。
+
+                 ★ M11：类型从 InkCanvas 换成了 InkSurfaceCanvas（派生类）。
+                   派生理由只有一个 —— UIElement.StylusPlugIns 是 protected，
+                   从外部加不进笔采样插件（插件是笔锋与采样率测量共同的地基）。
+                   除此之外行为与 InkCanvas 完全一致；验收 harness 全部经
+                   host.InkSurface 访问，一行都不用改。 -->
+            <controls:InkSurfaceCanvas x:Name="InkLayer"
+                                       Background="Transparent" />
+
+            <!-- 工具预览层（M7.1）：插件工具拖动中的橡皮筋、标尺刻度这类临时视觉。
+                 在墨迹层之上 ⇒ 预览永远压着已落的墨，看得清；
+                 同为 WorldHost 的子元素 ⇒ 本地坐标 ≡ 世界坐标，工具直接按世界坐标摆元素就行。
+                 这里的东西不进墨迹层、不进撤销栈、不落盘，抬笔或切换工具时由宿主清空。 -->
+            <Canvas x:Name="ToolPreviewLayer" />
+
+            <!-- 后续里程碑在此追加（顺序即 z 序）：
+                 <Canvas x:Name="AnnotationLayer" />   文字/图形批注 -->
+        </Canvas>
+    </Grid>
+</UserControl>

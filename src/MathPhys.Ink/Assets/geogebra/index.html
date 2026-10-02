@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoGebra 演示</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: "Microsoft YaHei", "微软雅黑", "Segoe UI", sans-serif;
+  }
+
+  /* 舞台：整块可用区域交给 GeoGebra。宿主已经把系统顶栏占掉，这里不要再留边距。 */
+  #stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+  }
+
+  /*
+   * GeoGebra 的挂载点。
+   * ★ display 必须显式给：article 默认是块级且带 margin，
+   *   不改的话 applet 右下方会莫名其妙缺一条，且尺寸会差 8px 对不上。
+   */
+  #ggb {
+    display: inline-block;
+    margin: 0;
+    border: none;
+    vertical-align: top;
+  }
+
+  /* ---------------------------------------------------------------- 载入遮罩 */
+
+  .veil {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    transition: opacity .18s ease;
+    z-index: 10;
+  }
+
+  .veil.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .veilCard {
+    border: 1px solid #e2e0d8;
+    border-radius: 12px;
+    padding: 22px 34px;
+    background: #faf9f5;
+    text-align: center;
+    max-width: 620px;
+  }
+
+  .veilTitle {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1e1e1e;
+    margin-bottom: 10px;
+  }
+
+  .veilDetail {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b6b6b;
+    line-height: 1.8;
+    /* ★ 失败时这里是中文原因，必须能换行读全，不能截断 —— 教室里没有控制台可看。 */
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .veil.failed .veilCard {
+    border-color: #e6b3b3;
+    background: #fdf6f6;
+  }
+
+  .veil.failed .veilTitle { color: #c62828; }
+  .veil.failed .veilDetail { color: #7a4a4a; }
+
+  /* ---------------------------------------------------------------- 署名角标 */
+  /* GeoGebra 许可要求"提及"：包里一份署名文件 + 界面上可见，双保险（docs/12 §8.3）。
+     ★ pointer-events 必须为 none：角标浮在 GeoGebra 之上，绝不能吃掉触点 ——
+     否则右下角的绘图/缩放按钮会点不动。 */
+  #credit {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    z-index: 20;                 /* 高于载入遮罩（z-index:10）：载入中也一直可见 */
+    pointer-events: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(30, 30, 30, 0.55);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+    user-select: none;
+  }
+
+  #credit a { color: inherit; text-decoration: none; }
+</style>
+</head>
+<body>
+
+  <!--
+    舞台与挂载点。
+
+    ★ 参数全部写在 data-param-* 上，这是 GeoGebra 的宿主页约定：
+      GWT 侧读这些属性决定渲染成什么样子。键名 = GeoGebra 的参数名。
+
+    ★ 几处刻意的选择：
+      · appName=classic      —— 代数区 + 绘图区，物理教学最需要的两样都在
+      · perspective=AG       —— 明确锁死视图组合，不含 CAS（我们没镜像 giac 引擎）
+      · showMenuBar=false    —— 免得用户点开 CAS / 3D 视图，那两个需要额外资源
+      · showSplash=false     —— ★ 离线必须关：启动图会去远程取
+      · errorDialogsActive=false —— 课堂上不弹英文异常框，错误走我们自己的通道
+      · language=zh_CN       —— 界面中文
+  -->
+  <div id="stage">
+    <article id="ggb"
+             class="appletParameters"
+             data-param-id="ggb"
+             data-param-appName="classic"
+             data-param-perspective="AG"
+             data-param-ggbOnInit="ggbOnInitGlobal"
+             data-param-language="zh_CN"
+             data-param-width="1280"
+             data-param-height="720"
+             data-param-showToolBar="true"
+             data-param-showAlgebraInput="true"
+             data-param-showMenuBar="false"
+             data-param-showResetIcon="true"
+             data-param-showZoomButtons="true"
+             data-param-showToolBarHelp="false"
+             data-param-allowStyleBar="true"
+             data-param-enableRightClick="false"
+             data-param-enableLabelDrags="true"
+             data-param-enableShiftDragZoom="true"
+             data-param-enableUndoRedo="true"
+             data-param-errorDialogsActive="false"
+             data-param-showSplash="false"
+             data-param-borderColor="#e2e0d8"></article>
+  </div>
+
+  <!-- 载入遮罩：载入中转圈、就绪后淡出、失败时把中文原因写在屏幕上 -->
+  <div id="veil" class="veil">
+    <div class="veilCard">
+      <div id="veilTitle" class="veilTitle">正在载入 GeoGebra</div>
+      <div id="veilDetail" class="veilDetail">本地离线载入，无需联网</div>
+    </div>
+  </div>
+
+  <!-- GeoGebra 署名角标（许可要求：包内署名文件 + 界面可见，双保险） -->
+  <div id="credit">基于 GeoGebra 构建 · https://www.geogebra.org</div>
+
+  <!--
+    ★★ 脚本顺序是硬约束，别调换：
+
+      ① offline-guard.js   —— 必须最先。它要把 fetch / XHR / script.src 等
+                              网络出口拦下来，然后我们自己才敢说「断网可用」。
+      ② bridge.js          —— 与宿主的消息通道。
+      ③ panel.js           —— 定义 renderGGBElementReady（GWT 的回调钩子）
+                              并 install 守门人。
+      ④ web3d.nocache.js   —— GeoGebra 的 GWT 装载器。放最后：
+                              它会立刻开始异步加载 7.9 MB 的应用主包，
+                              而它完成时会回头调 ③ 里定义好的那个钩子。
+  -->
+  <script src="offline-guard.js"></script>
+  <script src="bridge.js"></script>
+  <script src="panel.js"></script>
+  <script src="web3d/web3d.nocache.js"></script>
+</body>
+</html>

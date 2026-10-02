@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MathPhys.Ink.Plugin.VectorArrow</RootNamespace>
+    <!-- dll 名与目录名一致：加载器的约定是 plugins\vectorarrow\vectorarrow.dll -->
+    <AssemblyName>vectorarrow</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 只引用契约（与 Ruler/Protractor/Triangle/CoordSystem/FunctionPlot 同款）；
+         渲染器由宿主扫同名 dll 自动登记 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ★ 对 Plugin.Ruler 的引用是"**编译期常量借用**"，不是运行时依赖：
+         VectorMath 用 `const double SnapStepDegrees = RulerGeometry.SnapStepDegrees;`
+         把"吸附粒度/容差与直尺同源"这件事写进代码（避免将来改一处忘另一处，
+         卷面上出现"直尺吸 15°、箭头吸 10°"的不一致）。
+         const 在编译期就被内联成字面量 ⇒ 生成的 vectorarrow.dll **不含**对 ruler.dll 的引用，
+         发布时 plugins\vectorarrow\ 里不需要 ruler.dll（这一点由 harness 的
+         "vectorarrow.dll 的引用表里没有 ruler" 一条断言钉死）。 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Ruler\MathPhys.Ink.Plugin.Ruler.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

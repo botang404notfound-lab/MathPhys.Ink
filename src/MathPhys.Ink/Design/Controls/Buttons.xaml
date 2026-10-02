@@ -1,0 +1,565 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================================================================
+         按钮模板（M10 S3 建立；M20 S2 改为「叠层 + 只动画 Opacity」）
+
+         ★ 为什么自己写模板而不引控件库：见 docs/15 §10 ——
+           HandyControl 那类库会「全量替换原生控件样式」，直接撞上本项目最敏感的
+           输入归属不变量（InkCanvas 与几个 Canvas 的命中测试是靠 IsHitTestVisible
+           精确控制的），且第三方模板的内部结构我们**断言不了**。
+           自建模板反而让「按钮最小边长 ≥ 40」这类规范变成可回归的断言。
+
+         ★ 尺寸三档（docs/15 §8.2）：
+             紧凑 36（只留给面板内的小控件）｜标准 40（工具栏）｜大 48（停靠条 / 演示窗）
+           工具栏一律 40 —— 一体机是手指在点，不是鼠标。
+
+         ★ 颜色全部走 DynamicResource：换肤要能立刻生效（静态引用不刷新）。
+
+         ================================================================
+         M20 S2：五态 + 150ms 过渡（需求原话「150ms CubicEase，不弹跳」）
+
+         做法是**叠层**：常态底 Bd 只负责承载 DynamicResource；悬停 / 按下 /
+         选中各是一层**独立且半透明**的 Border，状态切换时只动画它的 Opacity。
+
+         ★★ 为什么不能直接动画底色（这是本方案最关键的一条）：
+            Ui.* 画刷在色板里带 po:Freeze="True" —— 冻结对象**不可动画**，
+            ColorAnimation 一跑就抛 InvalidOperationException；而绕过它去新建
+            一个非冻结的 SolidColorBrush 又会**脱离 DynamicResource**，
+            换肤后那个按钮会顽固地留着旧色（屏幕上表现为「漏了一块」）。
+
+            Opacity 是 UIElement 上一个**独立的依赖属性**，动画时钟挂在它上面；
+            Background 上的 DynamicResource 表达式与它互不相干 ⇒ 换肤时表达式
+            被重新求值（拿到新画刷），Opacity 的动画原样保留。
+            ⇒ **换肤即时生效，且永不残留旧色**。
+
+         ★ 硬规则：本文件里任何 Storyboard.TargetProperty 只允许是 Opacity。
+           不要动画 Background / BorderBrush / Foreground —— harness 会断言这一点。
+           需要「描边变主色」时，由自带 BorderBrush 的叠层（CheckFx）淡入来等价实现。
+
+         ★ 为什么用 HoldEnd（默认值）而不是 Stop：
+            叠层的基值就是它静止时应有的值（0），所以动画停在 To 上恰好正确。
+            用 FillBehavior=Stop 的话动画一结束就回落到基值 0 —— 悬停到一半
+            「啪」地跳回透明，那正是要避免的闪烁。
+
+         ★ 为什么 Enter/Exit 各起一条动画、只写 To 不写 From、且不加 StopStoryboard：
+            WPF 默认的交接方式是 SnapshotAndReplace —— 新动画会**快照当前正在
+            显示的值**作为起点。于是「悬停到一半移出」会从当前不透明度平滑反转。
+            若加上配对 StopStoryboard，反而会先把属性弹回基值再重来，肉眼能看出
+            一顿。
+
+         ★ 为什么悬停 / 按下的触发器要额外要求 IsEnabled=True（用 MultiTrigger）：
+            动画（HoldEnd）的优先级**高于** Trigger 的 Setter。按钮一禁用，
+            若悬停动画还持着 Opacity=1，禁用态的 Setter 就压不动它。
+            要求 IsEnabled=True 之后，按钮一禁用 MultiTrigger 立刻失活 ⇒
+            走 ExitActions ⇒ 叠层自然淡出 ⇒ 禁用态 Setter 生效。
+            **不需要任何事后清理代码，全程零 code-behind。**
+         ================================================================ -->
+
+    <!-- ================ 焦点环（M20 S2：第五态）================
+         ★ 用 FocusVisualStyle 而不是 IsKeyboardFocused 触发器：
+           WPF 只在**键盘导航**（Tab / 方向键）进入焦点时才绘制 FocusVisualStyle，
+           鼠标点击与触摸点击都不会触发它。而 IsKeyboardFocused 对触摸点击也
+           会变 true —— 老师每按一下按钮就闪一圈环，在一体机上就是「花」。
+         ★ 不要设 Focusable=False 来躲开这件事：那会顺手砍掉键盘用户的
+           Space / Enter 激活（本程序 F9、Ctrl+S 这些快捷键都还在用）。
+         ★ 默认那圈虚线在一体机上很丑，这里换成主色 2px 圆角环。 -->
+    <Style x:Key="Style.FocusRing">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="1"
+                               RadiusX="{StaticResource Radius.M}"
+                               RadiusY="{StaticResource Radius.M}"
+                               SnapsToDevicePixels="True"
+                               Stroke="{DynamicResource Ui.Accent}"
+                               StrokeThickness="{StaticResource Focus.RingThickness}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================ 通用按钮：五态 + 过渡 ================
+         ContentPresenter 的 Foreground / FontSize 必须显式 TemplateBinding：
+         只靠继承的话，按钮置灰时里面的文字不会跟着变灰（那是「点了没反应」
+         之外最容易被误判成「坏了」的一种表现）。 -->
+    <Style x:Key="Style.ToolbarButton" TargetType="Button">
+        <Setter Property="MinHeight" Value="{StaticResource Touch.Min}" />
+        <Setter Property="MinWidth" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Padding" Value="{StaticResource Pad.Button}" />
+        <Setter Property="FontSize" Value="{StaticResource Text.Button}" />
+        <Setter Property="Foreground" Value="{DynamicResource Ui.TextPrimary}" />
+        <Setter Property="Background" Value="{DynamicResource Ui.ControlSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Ui.Divider}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Style.FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <!-- ① 常态底：唯一承载 DynamicResource 的一层。
+                             它是静止状态的「原样」；状态色都靠上面叠层淡入，
+                             所以这里永远不需要被动画碰过。 -->
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource Corner.S}" />
+
+                        <!-- ② 悬停层 / ③ 按下层：层序 = 视觉优先级（按下压住悬停）。
+                             IsHitTestVisible=False：少两个命中测试节点 ——
+                             一体机是 213Hz 触摸率，这条链上的每一个节点都要省。 -->
+                        <Border x:Name="HoverFx" Opacity="0" IsHitTestVisible="False"
+                                Background="{DynamicResource Ui.ControlHover}"
+                                CornerRadius="{StaticResource Corner.S}" />
+                        <Border x:Name="PressFx" Opacity="0" IsHitTestVisible="False"
+                                Background="{DynamicResource Ui.ControlPressed}"
+                                CornerRadius="{StaticResource Corner.S}" />
+
+                        <ContentPresenter x:Name="Cp"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"
+                                          TextElement.FontSize="{TemplateBinding FontSize}"
+                                          RecognizesAccessKey="False" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- 悬停：只让悬停层淡入，不动描边 ——
+                             一动描边，整排按钮的边框就会跟着闪，反而比不改更乱 -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True" />
+                                <Condition Property="IsEnabled" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsPressed" Value="True" />
+                                <Condition Property="IsEnabled" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PressFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PressFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+
+                        <!-- 禁用：直接改 Bd 与前景色。这两个属性**没有**被任何动画占据
+                             （悬停/按下触发器都要求 IsEnabled=True），所以 Setter 一定生效。 -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ui.ControlDisabled}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Ui.ControlDisabled}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Ui.TextDisabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================ 图标按钮（仅图标，40×40）================
+         用于 −/＋、撤销/重做、清除笔迹、窗口模式这类**没有文字也一眼能懂**的动作。
+         文字按钮与图标按钮的高度都是 40，所以并排时基线天然对齐。 -->
+    <Style x:Key="Style.ToolbarIconButton" TargetType="Button" BasedOn="{StaticResource Style.ToolbarButton}">
+        <Setter Property="Width" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Height" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- ================ 方格瓦片按钮（M16 S3：方形工具栏的紧凑单元）================
+         图标在上、文字在下，固定 76 宽 —— 工具栏从「横贯全屏的长条」改成
+         「限宽换行的方阵」后，每个按钮都落进这个小方格里。
+         ★ 高度仍 ≥ Touch.Min(40)：一体机是手指在点，下限不许破（docs/15 §8.2）。
+         ★ 文字用 Text.Caption(13) 而不是按钮字号(15)：窄格里 15 号的「导出 PNG」会顶边。 -->
+    <Style x:Key="Style.ToolbarTileButton" TargetType="Button" BasedOn="{StaticResource Style.ToolbarButton}">
+        <Setter Property="Width" Value="{StaticResource Tile.Width}" />
+        <Setter Property="MinHeight" Value="{StaticResource Tile.MinHeight}" />
+        <Setter Property="Padding" Value="{StaticResource Tile.Pad}" />
+        <Setter Property="FontSize" Value="{StaticResource Text.Caption}" />
+    </Style>
+
+    <!-- 瓦片里的文字行：居中、超宽省略（76 宽的格里放「适应宽度」四个字刚刚好） -->
+    <Style x:Key="Style.TileText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource Text.Caption}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="MaxWidth" Value="{StaticResource Tile.TextMaxWidth}" />
+    </Style>
+
+    <!-- ================ 弹窗的主按钮（「保存」「确定」）================
+         唯一一处**用主色填满**的地方：主色只标「当前状态」与「该你按的那个」，
+         不做装饰 —— 弹窗里最要紧的就是「我该按哪个」。
+         ★ 悬停/按下叠层是半透明的，压在实心主色上只是把它提亮一档，观感正确。 -->
+    <Style x:Key="Style.DialogPrimaryButton" TargetType="Button" BasedOn="{StaticResource Style.ToolbarButton}">
+        <Setter Property="Background" Value="{DynamicResource Ui.Accent}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Ui.Accent}" />
+        <Setter Property="Foreground" Value="{DynamicResource Ui.OnAccent}" />
+        <Setter Property="FontWeight" Value="{StaticResource Weight.SemiBold}" />
+    </Style>
+
+    <!-- ================ 大按钮（停靠条 / 演示窗，手指为主）================ -->
+    <Style x:Key="Style.DockButton" TargetType="Button" BasedOn="{StaticResource Style.ToolbarButton}">
+        <Setter Property="MinHeight" Value="{StaticResource Touch.Large}" />
+        <Setter Property="Padding" Value="{StaticResource Pad.DockButton}" />
+        <Setter Property="FontSize" Value="{StaticResource Text.ButtonLarge}" />
+        <Setter Property="FontWeight" Value="{StaticResource Weight.SemiBold}" />
+    </Style>
+
+    <!-- ================ 工具按钮（ToggleButton，由工具注册表生成）================
+         ★ 选中态用**主色**（AccentSoft 底 + Accent 描边）：主色只标「当前状态」，
+           不用来装饰 —— 这是「低干扰」原则里最要紧的一条。
+         M10 之前这里是用 Button 冒充 ToggleButton（靠 code-behind 改边框亮度），
+           有了自己的模板之后可以改回真正的 ToggleButton。
+
+         ★ M20 S2 补上的第五态：**按下**。原模板只有 悬停 / 选中 / 禁用 三个触发器，
+           按下时完全没有视觉反馈 —— 而工具按钮是要连续点的一类控件，
+           少了按下态会让人觉得「点没点中」。 -->
+    <Style x:Key="Style.ToolToggle" TargetType="ToggleButton">
+        <Setter Property="MinHeight" Value="{StaticResource Touch.Min}" />
+        <Setter Property="MinWidth" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Padding" Value="{StaticResource Pad.Button}" />
+        <Setter Property="FontSize" Value="{StaticResource Text.Button}" />
+        <Setter Property="Foreground" Value="{DynamicResource Ui.TextPrimary}" />
+        <Setter Property="Background" Value="{DynamicResource Ui.ControlSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Ui.Divider}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Style.FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource Corner.S}" />
+
+                        <!-- 选中层：自带主色描边 —— 淡入它就等价于「描边渐变成主色」，
+                             于是不需要去动画 BorderBrush（那会撞上冻结画刷的坑）。 -->
+                        <Border x:Name="CheckFx" Opacity="0" IsHitTestVisible="False"
+                                Background="{DynamicResource Ui.AccentSoft}"
+                                BorderBrush="{DynamicResource Ui.Accent}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource Corner.S}" />
+                        <Border x:Name="HoverFx" Opacity="0" IsHitTestVisible="False"
+                                Background="{DynamicResource Ui.ControlHover}"
+                                CornerRadius="{StaticResource Corner.S}" />
+                        <Border x:Name="PressFx" Opacity="0" IsHitTestVisible="False"
+                                Background="{DynamicResource Ui.ControlPressed}"
+                                CornerRadius="{StaticResource Corner.S}" />
+
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"
+                                          TextElement.FontSize="{TemplateBinding FontSize}"
+                                          RecognizesAccessKey="False" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- 图层顺序即优先级：PressFx 在最上 ⇒ 按下时压住选中层。
+                             所以「选中且按下」不需要靠触发器声明顺序来裁决。 -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True" />
+                                <Condition Property="IsEnabled" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True" />
+                                <Condition Property="IsEnabled" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsPressed" Value="True" />
+                                <Condition Property="IsEnabled" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PressFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PressFx"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                         Duration="{StaticResource Motion.Fast}"
+                                                         EasingFunction="{StaticResource Ease.Standard}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+
+                        <!-- 选中态的静态兜底：动画只负责「过渡」，静止时的**真值**在这里。
+                             （动画 HoldEnd 会一直持着 To 值，所以这条 Setter 在正常路径上
+                              看不到效果；它保证的是「动画被移除后画面不跳」以及
+                              「构造后立刻截图（尚未跑动画）也是选中样」。） -->
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Ui.Accent}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Ui.TextPrimary}" />
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Ui.ControlDisabled}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Ui.ControlDisabled}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Ui.TextDisabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================ 色块（墨色 5 个）================
+         底色与边框由 code-behind 按 InkPalette 与当前选中项设置 ——
+         ★ 底色**绝不能在 XAML 里再写一遍**（M10 发现的两处真实缺陷之一：
+           XAML 手抄了一份墨色，改 InkPalette 后色块不跟着变）。
+         这里只管尺寸与圆角。
+         ★ 它不做叠层过渡：整块就是颜色本身，叠一层半透明色会**改变颜色**，
+           而「选中的是哪支笔」必须一眼看准，不能靠亮一档来暗示。
+           焦点环仍然给它（键盘导航时能看到自己在哪儿）。 -->
+    <Style x:Key="Style.InkSwatch" TargetType="Button">
+        <Setter Property="Width" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Height" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="3" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Style.FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource Corner.S}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================ 档位按钮（笔宽 4 档）================ -->
+    <Style x:Key="Style.StepButton" TargetType="Button" BasedOn="{StaticResource Style.ToolbarButton}">
+        <Setter Property="Padding" Value="{StaticResource Pad.ButtonCompact}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <!-- ================ 分组分隔线 ================
+         工具栏分组用（M20 S4）。
+         ★ 竖线（Style.Divider）：同一行里把两个组隔开。
+         ★ 横线（Style.GroupDivider）：**组与组之间那条全宽横线**。
+           M16 当年说「换行流里分隔线位置不可控」，指的是**竖线**夹在换行流里：
+           换行之后它可能落到行首或行尾，看着像误加的一条边框。
+           横线没有这个问题 —— 它是组块之间的独立一行（StackPanel 的直接子元素），
+           位置由"哪两组之间"决定，与换行无关。 -->
+    <Style x:Key="Style.Divider" TargetType="Border">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource Ui.Divider}" />
+        <Setter Property="Margin" Value="{StaticResource Gap.Separator}" />
+    </Style>
+
+    <Style x:Key="Style.GroupDivider" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="{StaticResource Gap.GroupDivider}" />
+        <Setter Property="Background" Value="{DynamicResource Ui.Divider}" />
+    </Style>
+
+    <!-- ================ 组标题（M20 S4）================
+         ★ 为什么是**行内**窄标签而不是"独占一行的标题"：
+           工具栏是限宽 500 的浮动方阵，独占一行 = 每组白花 50px（四组就是 200px），
+           而一体机屏只有 720 高 —— 多出来的高度会把最下面的按钮顶出屏幕外，
+           那种"按钮不见了"最难查（截图里只是被裁掉）。
+           做成"流里的第一个元素"之后：它必然落在该组第一行的行首，
+           而那一行本来也填不满（组内瓦片数很少刚好整除），等于**不花高度**。
+         ★ 底色用 Ui.Divider（中性分隔色）而不是主色：主色在本项目里只标
+           「当前状态」与「该你按的那个」，分组标题是装饰性信息，不配用主色。
+         ★ 高度对齐瓦片（Tile.MinHeight）：不做垂直居中的花招 ——
+           WrapPanel 给每个子元素的矩形就是它自己的 DesiredSize，
+           设 VerticalAlignment=Center 是没有效果的（看着像"差一点没对齐"，实则是没对齐）。 -->
+    <Style x:Key="Style.GroupHeaderChip" TargetType="Border">
+        <Setter Property="Height" Value="{StaticResource Tile.MinHeight}" />
+        <Setter Property="CornerRadius" Value="{StaticResource Corner.S}" />
+        <Setter Property="Background" Value="{DynamicResource Ui.Divider}" />
+        <Setter Property="Padding" Value="{StaticResource Pad.GroupChip}" />
+        <Setter Property="Margin" Value="{StaticResource Gap.Tile}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="Style.GroupHeaderLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Ui.TextSecondary}" />
+        <Setter Property="FontSize" Value="{StaticResource Text.Label}" />
+        <Setter Property="FontWeight" Value="{StaticResource Weight.SemiBold}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ================ 工具瓦片（ToggleButton，M20 S4）================
+         与上面的 TileButton 同尺寸，只是控件类型是 ToggleButton（工具要有选中态）。
+         尺寸全部继承自 Style.ToolToggle，这里只覆盖"方格"的那三样。 -->
+    <Style x:Key="Style.ToolTileToggle" TargetType="ToggleButton" BasedOn="{StaticResource Style.ToolToggle}">
+        <Setter Property="Width" Value="{StaticResource Tile.Width}" />
+        <Setter Property="MinHeight" Value="{StaticResource Tile.MinHeight}" />
+        <Setter Property="Padding" Value="{StaticResource Tile.Pad}" />
+        <Setter Property="FontSize" Value="{StaticResource Text.Caption}" />
+    </Style>
+
+    <!-- ================ 工具族的展开箭头（二级菜单入口，M20 S4）================
+         一族多成员时：主瓦片 = 直接切到"上次用过的那一个"，箭头 = 展开选成员。
+         两件事分成两个可点目标，而不是"点主瓦片弹菜单"（那会让常用工具多一次点击），
+         也不是长按 / 双击（一体机上既没有键盘也没有鼠标右键的可靠替代，
+         隐藏手势等于没有手势 —— M4.2 的结论）。
+         ★ 宽度取 Touch.Min(40)：它是个真按钮，不是装饰角标，手指要能点中。
+         ★ HasVariants=False 时整颗折起来（Visibility=Collapsed）⇒ 普通工具
+           用的就是同一套模板，不需要两份。
+         ★ IsChecked 绑到 VariantsOpen：箭头自身的"按下/展开"观感与弹窗的开合
+           由同一个字段驱动，点别处关掉弹窗时箭头也会自己弹回来（StaysOpen=False）。 -->
+    <Style x:Key="Style.FamilyChevron" TargetType="ToggleButton" BasedOn="{StaticResource Style.ToolTileToggle}">
+        <Setter Property="Width" Value="{StaticResource Touch.Min}" />
+        <Setter Property="MinWidth" Value="{StaticResource Touch.Min}" />
+        <Setter Property="Height" Value="{StaticResource Tile.MinHeight}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="{StaticResource Gap.Chevron}" />
+        <Setter Property="IsChecked" Value="{Binding VariantsOpen, Mode=TwoWay}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding HasVariants}" Value="False">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- 箭头里的小圆点：族里"非代表"的某个成员是当前工具时亮起。
+         没有它就会出现「看不出现在用的是变体」—— 代表瓦片不亮（它确实不是当前工具），
+         族里再没别的提示，老师会以为工具没切过去。 -->
+    <Style x:Key="Style.FamilyChevronDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="{StaticResource Ind.DotSize}" />
+        <Setter Property="Height" Value="{StaticResource Ind.DotSize}" />
+        <Setter Property="Fill" Value="{DynamicResource Ui.Accent}" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Margin" Value="0,3,3,0" />
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding AnyVariantActive}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+    <!-- ================ 二级菜单里的一行（工具族成员，M20 S4）================
+         一行 = 图标 + 完整工具名（这里**不缩写**，瓦片上放不下的名字在这里补齐）。
+         直接用 ToggleButton：选中态就是"当前用的是族里哪一个"的指示，
+         不需要额外的勾或圆点 —— 主色高亮本来就只用来标当前状态。
+         ★ 左对齐而不是居中：一列长短不一的文字居中会看着像参差不齐的装饰。 -->
+    <Style x:Key="Style.FamilyMemberToggle" TargetType="ToggleButton" BasedOn="{StaticResource Style.ToolToggle}">
+        <Setter Property="MinWidth" Value="{StaticResource Menu.MinWidth}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+</ResourceDictionary>

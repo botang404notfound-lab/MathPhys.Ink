@@ -1,0 +1,35 @@
+<Application x:Class="MathPhys.Ink.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+
+                <!-- ================================================================
+                     设计系统（M10）。**顺序 = 优先级**：后加载的覆盖先加载的。
+
+                     ★ 三套色板刻意分开摆在最前面，因为它们各有各的生命周期：
+                       · Palette.Canvas —— 永不变化（值就是"纸"与画布图元）；
+                       · Palette.Dark   —— **换肤时被整本替换掉的就是这一本**；
+                       · Typography / Spacing / Motion / Icons / Controls —— 与主题无关，装一次用一辈子。
+                         （Motion 是 M20 S1 新增的动效令牌：时长与缓动曲线，
+                          同样与主题无关 —— 换深浅色不改手感。）
+
+                     ★ 换肤的实现见 Design/ThemeService.cs：按 Source 认出界面板那一本、
+                       原地替换（保持位置 ⇒ 优先级不变），其余字典一个都不动。
+                     ================================================================ -->
+                <ResourceDictionary Source="Design/Palette.Canvas.xaml" />
+                <ResourceDictionary Source="Design/Palette.Dark.xaml" />
+                <ResourceDictionary Source="Design/Typography.xaml" />
+                <ResourceDictionary Source="Design/Spacing.xaml" />
+                <ResourceDictionary Source="Design/Motion.xaml" />
+                <ResourceDictionary Source="Design/Icons.xaml" />
+                <ResourceDictionary Source="Design/Controls/Buttons.xaml" />
+                <ResourceDictionary Source="Design/Controls/Inputs.xaml" />
+                <ResourceDictionary Source="Design/Controls/Panels.xaml" />
+
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,63 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options">
+
+    <!-- ================================================================
+         画布板（M10 S0）—— **不随界面主题变**
+
+         ★ 划分判据只有一条（docs/15 §3.1）：
+             它会不会进导出产物（PNG / PDF）？
+           导出链路只含「页面 + 笔迹 + 图形对象」，界面元素一个都不进。
+           会进导出的 → 进这本；不会进的 → 进界面板。
+
+         ★ 为什么"选中高亮"和"手柄"也算画布板：
+           它们是**画在纸上的**，老师能在导出的图上看到自己选中了哪个对象。
+           它们的明度关系必须与"纸"恒定，而不能跟着界面主题翻转 ——
+           否则切到浅色界面时，"白纸上的白色手柄"就消失了。
+
+         ★ 这本的值 M10 起**永不改变**（只把散落的写法收进来），
+           S0 的验收判据同样是"换了写法、颜色一个像素都没变"。
+         ================================================================ -->
+
+    <!-- "纸"：页内白底 + 页外无限远的留白，两层同色才连成一张连续的纸 -->
+    <SolidColorBrush x:Key="Canvas.PageWhite" Color="#FFFFFFFF" po:Freeze="True" />
+    <!-- M13 S2：纸张背景预设色（浅色系三档）。
+         ★ M21 起补一档深色 PageBlack（"黑板"），并把它做成**应用层出厂默认**
+           （见 MainWindow.InitPaperColor 的兜底）。深底配深墨等于没写，
+           所以墨色表里同步补了一档「白」（InkPalette.Colors）——
+           这两件事是一套的，改一处必须想到另一处。
+         ★ 本键与 CanvasViewportHost 的出厂白都不动：组件在没人指定底色时仍是白纸，
+           harness 的"页外纯白"整纸断言依赖那个出厂值。 -->
+    <SolidColorBrush x:Key="Canvas.PageCream" Color="#FDF6E3" po:Freeze="True" />
+    <SolidColorBrush x:Key="Canvas.PageGreen" Color="#EAF6EC" po:Freeze="True" />
+    <SolidColorBrush x:Key="Canvas.PageBlue" Color="#EAF3FA" po:Freeze="True" />
+    <!-- 黑板底。刻意不用纯黑 #000000：纯黑与"近黑的墨"区分不开，深色图形掉进去也看不出来；
+         #1E1E1E 在投影/一体机上与纯黑几乎无异，又给笔迹与图形留了一点可见余量。 -->
+    <SolidColorBrush x:Key="Canvas.PageBlack" Color="#FF1E1E1E" po:Freeze="True" />
+
+    <!-- 页边描边：细到几乎看不见，只为在相邻页之间留一道分界 -->
+    <SolidColorBrush x:Key="Canvas.PageEdge" Color="#FF5A5A55" po:Freeze="True" />
+
+    <!-- 选中框 / 手柄（GfxSelectionTool） -->
+    <SolidColorBrush x:Key="Canvas.SelectionStroke" Color="#FF2563EB" po:Freeze="True" />
+    <SolidColorBrush x:Key="Canvas.SelectionFill" Color="#FFFFFFFF" po:Freeze="True" />
+
+    <!-- 删除手柄：全程序唯一的删除入口，用醒目的红 -->
+    <SolidColorBrush x:Key="Canvas.DeleteStroke" Color="#FFDC2626" po:Freeze="True" />
+
+    <!-- 未实化图形（渲染器缺失 / 插件卸载后）的虚线占位框 —— 它也会被导出，
+         提醒老师"这里有一个我没能画出来的对象"，属于画布内容。 -->
+    <SolidColorBrush x:Key="Canvas.PlaceholderStroke" Color="#FFC0662B" po:Freeze="True" />
+    <SolidColorBrush x:Key="Canvas.PlaceholderFill" Color="#14C0662B" po:Freeze="True" />
+
+    <!-- 图形对象的出厂色。
+         ★ 这一键与 GfxObjectData.DefaultColor / GfxObject 的默认值**必须一致**，
+           harness 会把三者放在一起断言（改一处忘了另一处，导出图上的默认色就会变）。 -->
+    <SolidColorBrush x:Key="Canvas.GfxDefault" Color="#FF000000" po:Freeze="True" />
+
+    <!-- 题号标记（M12）的讲评语义色：红 = 错题、绿 = 已讲评（批改惯例，不随界面主题变）。
+         「未讲」态用对象自己的墨色，不占键。 -->
+    <SolidColorBrush x:Key="Canvas.QuestionMarkWrong" Color="#FFC62828" po:Freeze="True" />
+    <SolidColorBrush x:Key="Canvas.QuestionMarkDone" Color="#FF2E7D32" po:Freeze="True" />
+
+</ResourceDictionary>

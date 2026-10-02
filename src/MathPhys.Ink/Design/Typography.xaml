@@ -1,0 +1,47 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- ================================================================
+         字体与字号层级（M10 S1）
+
+         ★ 字体族**只在这里设一次**（Application 级），
+           绝不在 20 个按钮上各写一遍 —— 那种写法早晚会出现
+           "这个标签是雅黑、那个还是宋体"。
+
+         ★ 回退链的用意：一体机机型不一，显式指定才有跨机器一致的结果；
+           Microsoft YaHei UI 是雅黑的 UI 优化版（中英混排时英文更协调），
+           老系统没有它时退到 Microsoft YaHei，再退到 Segoe UI。
+
+         ★ **不引入嵌入式字体**：免安装交付要把字体文件和授权审查一起带上，
+           收益不抵成本（docs/15 §6.2）。
+
+         ★ 字号层级从 8 档（11/12/13/14/15/16/17/18）收敛到 6 档，
+           全部 **≥13**：一体机的观看距离是 3~8 米，不是 60 厘米。
+         ================================================================ -->
+
+    <FontFamily x:Key="Font.Family">Microsoft YaHei UI, Microsoft YaHei, Segoe UI</FontFamily>
+
+    <!-- ================ 字重 ================
+         只用两档：Normal 与 SemiBold。
+         大屏上 Bold 会糊、Light 会虚，中间这一档最稳。 -->
+    <FontWeight x:Key="Weight.Normal">Normal</FontWeight>
+    <FontWeight x:Key="Weight.SemiBold">SemiBold</FontWeight>
+
+    <!-- ================ 字号（6 档）================ -->
+    <!-- 状态栏右侧的操作提示、插件统计这类"知道就好"的信息 -->
+    <sys:Double x:Key="Text.Caption">13</sys:Double>
+    <!-- 分组标签（墨色 / 笔宽）、次级说明 -->
+    <sys:Double x:Key="Text.Label">15</sys:Double>
+    <!-- 常规文字、次级信息 -->
+    <sys:Double x:Key="Text.Body">15</sys:Double>
+    <!-- 文件名 / 缩放百分比 / 状态：需要一眼扫到 -->
+    <sys:Double x:Key="Text.BodyStrong">16</sys:Double>
+    <!-- 工具栏按钮文字 -->
+    <sys:Double x:Key="Text.Button">15</sys:Double>
+    <!-- 停靠条 / 演示窗的大按钮（手指为主） -->
+    <sys:Double x:Key="Text.ButtonLarge">17</sys:Double>
+    <!-- 面板 / 窗口标题 -->
+    <sys:Double x:Key="Text.Title">18</sys:Double>
+
+</ResourceDictionary>

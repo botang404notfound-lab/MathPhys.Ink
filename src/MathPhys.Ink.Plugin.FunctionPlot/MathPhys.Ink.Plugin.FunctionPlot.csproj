@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MathPhys.Ink.Plugin.FunctionPlot</RootNamespace>
+    <AssemblyName>functionplot</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 只引用契约（与 Ruler/Protractor/Triangle/CoordSystem 同款）；渲染器由宿主扫同名 dll 自动登记 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- 需要 WPF 的 BitmapSource / PngBitmapEncoder 来跑通真实渲染路径 -->
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <RootNamespace>MathPhys.Ink.PdfSmokeTest</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 直接复用生产代码，不复制粘贴：验证的就是真正会跑的那条路径 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink\MathPhys.Ink.csproj" />
+    <!-- 验收用插件 dll（含一个"故意抛异常"的插件类）。构建时产出并复制到 harness 输出目录，
+         M7.2 的断言再把它摆成 plugins\ 目录的形态交给加载器 —— 加载器要验的是真 dll，
+         不是测试里手工 new 出来的对象。 -->
+    <ProjectReference Include="..\PdfSmokeTest.Plugin\PdfSmokeTest.Plugin.csproj" />
+    <!-- 正式直尺插件（M7.3）。harness 直接引用它，是为了能在"假 IToolContext + 真宿主"
+         两种环境下驱动同一个 RulerTool —— 几何、状态机、落墨链路全部可断言，
+         不用等一体机实测才发现角度算错。 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.Ruler\MathPhys.Ink.Plugin.Ruler.csproj" />
+    <!-- 验收用图形型插件（M7.4）：同时提供创建型工具与图形渲染器。
+         引用是为了两件事：把 dll 复制到 harness 输出目录（加载器要加载真 dll），
+         以及让断言能引用 "demo-box" 这个 Kind 常量和它的固定尺寸。 -->
+    <ProjectReference Include="..\PdfSmokeTest.GfxPlugin\PdfSmokeTest.GfxPlugin.csproj" />
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.Protractor\MathPhys.Ink.Plugin.Protractor.csproj" />
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.Triangle\MathPhys.Ink.Plugin.Triangle.csproj" />
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.CoordSystem\MathPhys.Ink.Plugin.CoordSystem.csproj" />
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.FunctionPlot\MathPhys.Ink.Plugin.FunctionPlot.csproj" />
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.VectorArrow\MathPhys.Ink.Plugin.VectorArrow.csproj" />
+    <!-- GeoGebra 演示面板插件（M7.5 S0）。harness 直接引用它，为的是能把
+         「点一下按钮 ⇒ 面板打开 + 画布输入被抑制 + 工具自动弹回」这条链路
+         在真宿主上端到端断言 —— 而不是只验面板控制器自己。 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.GeoGebra\MathPhys.Ink.Plugin.GeoGebra.csproj" />
+    <!-- 公式插件（M14）：真渲染路径断言要引用 Kind 常量与渲染器 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.Formula\MathPhys.Ink.Plugin.Formula.csproj" />
+    <!-- 电路元件插件（M14）：全部元件的 Measure/CreateVisual/Describe + 存档往返 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.CircuitKit\MathPhys.Ink.Plugin.CircuitKit.csproj" />
+    <!-- 圆规 / 圆弧插件（M19）：两点式整圆 + 任意夹角圆弧的状态机、几何与注册链路 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.Compass\MathPhys.Ink.Plugin.Compass.csproj" />
+    <!-- 物理仿真插件（M22 S3）：三个运动学模型（单摆 / 弹簧 / 斜面）是纯数学，
+         不依赖窗口与消息循环就能算式地断言；SimScene 的 Draw 也走离屏渲染，
+         所以「屏幕上看到的画」与「导出成 PNG 的画」在 harness 里是同一段代码。
+         ★ 这里只引 NativeSim（它零 NuGet 依赖、不引宿主）—— 不要把宿主反过来引进来。 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.NativeSim\MathPhys.Ink.Plugin.NativeSim.csproj" />
+  </ItemGroup>
+
+</Project>

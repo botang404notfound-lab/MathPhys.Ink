@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 与宿主同一目标框架：契约类型要在同一运行时里共享 -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- dll 名与目录名一致：加载器的约定是 plugins\protractor\protractor.dll -->
+    <AssemblyName>protractor</AssemblyName>
+    <RootNamespace>MathPhys.Ink.Plugin.Protractor</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 插件只引用契约，不引用宿主 —— 这是插件形态的定义本身。 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

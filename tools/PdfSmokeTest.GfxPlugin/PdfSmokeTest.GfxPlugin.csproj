@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 与宿主同一目标框架：契约类型要在同一运行时里共享 -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>PdfSmokeTest.GfxPlugin</AssemblyName>
+    <RootNamespace>MathPhys.Ink.PdfSmokeTest.GfxPlugin</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 插件只引用契约，不引用宿主 —— 这是插件形态的定义本身。
+         与 PdfSmokeTest.Plugin 分开成两个 dll，是为了让 M7.4 的加载器断言
+         （"dll 里实现 IGfxObjectRenderer 的类型被自动登记"）能在
+         不影响 M7.2 那批"一个 dll 只注册一个工具"的断言的前提下验证。 -->
+    <ProjectReference Include="..\..\src\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

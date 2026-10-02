@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 与宿主同一目标框架：契约类型要在同一运行时里共享 -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>MathPhys.Ink.Plugin.NativeSim</RootNamespace>
+    <!-- dll 名与目录名一致：加载器的约定是 plugins\nativesim\nativesim.dll -->
+    <AssemblyName>nativesim</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- ★ 零 NuGet 依赖：整个仿真只用 WPF 的基础图形（DrawingContext / Geometry / Brush）
+         与契约程序集。于是它不需要 EnableDynamicLoading，也**两个变体都带得动** ——
+         轻量版留的就是它（D2：轻量版只留原生 WPF 仿真）。
+         ★ 没有 .xaml：与其余 10 个插件同一个做法 —— 界面用代码建。
+           插件工程的 XAML 要走 Page 编译，而插件的输出形态与宿主不同，
+           代码建窗在这条路上踩过的坑最少（滚动、焦点、尺寸全是显式的）。 -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 插件只引用契约，不引用宿主 —— 这是插件形态的定义本身。
+         特别地，本插件**不引用 WebView2**：网页仿真面板由宿主创建与管理，
+         插件只通过 IToolContext.WebSim 这个受控通道请求打开。 -->
+    <ProjectReference Include="..\MathPhys.Ink.Plugin.Abstractions\MathPhys.Ink.Plugin.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

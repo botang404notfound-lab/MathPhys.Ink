@@ -1,0 +1,17 @@
+版本标记（包内 version 文件）：27.0.0
+
+CircuitJS1（电路模拟器）离线资源
+====================================
+
+来源：https://www.falstad.com/circuit/offline/circuitjs1-win.zip
+取回日期：2026-09-27
+原包大小：104.4 MB（NW.js 封装）；本目录只保留了其中的 Web 构建部分（war/）。
+
+CircuitJS1 原作者 Paul Falstad（Java Applet），Iain Sharp 移植到浏览器（GWT）。
+许可证：GNU General Public License v2（GPL-2.0）—— 本目录按 GPL 要求原样保留
+分发（未改动任何官方文件；剔除清单见 tools/fetch_circuitjs.py 文件头）。
+
+项目主页：https://github.com/pfalstad/circuitjs1
+在线版：https://www.falstad.com/circuit/
+
+重新取回：python tools/fetch_circuitjs.py

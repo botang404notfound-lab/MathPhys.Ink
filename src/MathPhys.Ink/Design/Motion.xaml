@@ -1,0 +1,35 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options">
+
+    <!-- ================================================================
+         动效令牌（M20 S1）
+
+         ★ 范围：**只做「状态过渡」**（悬停 / 按下 / 选中 / 焦点环），
+           不做面板与 Popup 的进出场动画。一体机是集显、还可能是软件回退，
+           大面元素的进出场动画是掉帧的头号来源；而按钮状态过渡只影响
+           一个瓦片大小的区域，代价可控。
+
+         ★ 为什么时长与缓动也要进令牌：动效最容易失控的方式是「每个模板
+           各写一个 0.2s / 0.25s / 0.3s」—— 单独看都合理，并排看就乱了。
+           令牌化之后全项目只有一个时长、一条曲线，改手感只改这一个文件。
+
+         ★ 不弹跳（需求原话）：只用 CubicEase 的 EaseOut（起步快、收尾稳）。
+           禁用 BackEase / ElasticEase / BounceEase —— 白板是教学工具，
+           按钮回弹会让人怀疑软件是否卡了；而且过冲会短暂越出圆角边界。
+           harness 会断言这三个缓动类零命中。
+         ================================================================ -->
+
+    <!-- 状态过渡时长：150ms。
+         为什么是 150：低于 100ms 人眼基本看不出过渡（等于没做），
+         高于 250ms 在需要连续点按的工具条上会显得迟钝。
+         ★ 用 Duration 类型而不是 sys:TimeSpan：Storyboard 里 Duration 属性
+           期望的就是 Duration，直接给同名类型省掉一层隐式转换。 -->
+    <Duration x:Key="Motion.Fast">0:0:0.15</Duration>
+
+    <!-- 统一缓动：CubicEase + EaseOut。
+         冻结成共享实例：几十个按钮共用同一条曲线，不必各存一份副本
+         （与三本画板里的画刷同理 —— 冻结后跨模板共享是安全的）。 -->
+    <CubicEase x:Key="Ease.Standard" EasingMode="EaseOut" po:Freeze="True" />
+
+</ResourceDictionary>
