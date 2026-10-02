@@ -80,9 +80,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 VARIANTS = {
 
-    "full": ("白板M26-数学键盘测试包.zip", False),
+    "full": ("数理墨-v0.1.0-完整版.zip", False),
 
-    "lite": ("白板M26-数学键盘测试包-轻量版.zip", True),
+    "lite": ("数理墨-v0.1.0-轻量版.zip", True),
 
 }
 
@@ -111,8 +111,8 @@ CREDIT = "第三方许可与署名.txt"
 
 TESTCARD_EDITS = [
     # ---- 标题 ----
-    (" 数理墨 · M26 测试包（数学键盘：函数输入 / 公式 LaTeX 共用一套键盘）",
-     " 数理墨 · M26 测试包 · 轻量版（数学键盘：函数输入 / 公式 LaTeX 共用一套键盘）",
+    (" 数理墨 · v0.1.0 测试包（数学键盘：函数输入 / 公式 LaTeX 共用一套键盘）",
+     " 数理墨 · v0.1.0 测试包 · 轻量版（数学键盘：函数输入 / 公式 LaTeX 共用一套键盘）",
      "标题"),
     # ---- 自带资源句 ----
     ("  · 本包自带 WebView2 运行时与 GeoGebra / 物理仿真离线资源，目标机【不需联网、\n"
@@ -714,7 +714,7 @@ def verify(source, zip_path, lite, info):
 
                          if ln.startswith(("  geogebra\\", "  websim\\", "  webview2\\"))]
 
-            check(" 数理墨 · M26 测试包 · 轻量版（数学键盘：函数输入 / 公式 LaTeX 共用一套键盘）" in tc
+            check(" 数理墨 · v0.1.0 测试包 · 轻量版（数学键盘：函数输入 / 公式 LaTeX 共用一套键盘）" in tc
 
                   and "【这是轻量版】" in tc and not dir_lines,
 

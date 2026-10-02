@@ -47,7 +47,7 @@ STAGE_REL = os.path.join("dist", "tablet")
 #   M9 包已归档到 dist\_历史版本\，不要再指回去（那会让这次重建找不到源）。
 #   ★ 每次收尾把上一版包挪进 %TEMP% 之后，这里必须跟着换成**新的**完整版包，
 #     否则下一次重建会报"找不到 webview2 来源"（webview2 不可再生，只有包里有）。
-DEFAULT_WEBVIEW2_FROM = os.path.join("dist", "白板M26-数学键盘测试包.zip")
+DEFAULT_WEBVIEW2_FROM = os.path.join("dist", "数理墨-v0.1.0-完整版.zip")
 
 WV_TOP = "webview2/"
 

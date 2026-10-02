@@ -84,6 +84,19 @@ $env:DOTNET_CLI_UI_LANGUAGE = "en"   # 否则中文环境输出 GBK，日志读�
   单独挑出来审计**，别把显示名和路径名当一回事。同理，正则里的分段写法
   （`TangBo[.]WhiteBoard`）不会被 `TangBo.WhiteBoard` 替换命中，会被次级规则误伤成
   `MathPhys[.]WhiteBoard`，把一条**否定断言变成恒真探针**。
+- **`artifacts/` 是改名的盲区，只能定点补、不能全量替换**（2026-10-02 实测）：它是
+  gitignore 的本地工具目录，改名时被整体跳过；但其中**仍在用**的冒烟脚本写死了旧名
+  （`smoke_pkg.py` 的 `WINDOW_TITLE`、`%LOCALAPPDATA%\TangBo.WhiteBoard\`、
+  `smoke_*_anchors.py` 的 `src/TangBo.WhiteBoard/Assets/`），不改就跑不起来。
+  ★ **但 `artifacts/smoke_publish.py` 不能动** —— 它含 `...\WorkBuddy\唐波的白板\dist\...`
+  **绝对路径**，而磁盘目录名并没改，替换会把它改死。历史一次性脚本（`_bugcheck_*` /
+  `_edit_*` / `smoke_m75*`）仍带旧名，**别盲目全量替换**。
+- **「不写死版本号」要连正则一起检查**：`smoke_testcard_anchors.py` / `smoke_pkg.py` 的
+  版本号是"从包名与卡片标题现取"的（设计上不写死），但**取值的正则写死了命名方案**
+  （`白板(M\d+)-`、`·\s*(M\d+)\s*测试包`）。包名一换成 `数理墨-v0.1.0-…`，两条护栏
+  立刻误报 FAIL。已改成同时兼容里程碑式与语义化式（见 docs/06 §39.3）。
+- **`dist/tablet` 里的随包文本是 publish 带出的**：改了 `src/*/Assets/怎么测试.txt` 之后
+  必须**重跑 publish 再打包**，只重跑 `_m9_pack.py` 打出来的是**旧卡片**。
 - 每次 build 后先看 `$LASTEXITCODE` 再决定要不要 run，否则 `--no-build` 会拿旧 dll 跑出**假通过**。
 - **结论性回归必须在沙箱外跑**：沙箱禁 `File.Replace` ⇒ `TwbFile` 断言假 FAIL。
 - 光栅结论**必须像素采样确证**，不靠肉眼；「图上没看见」不等于「图上没有」。
